@@ -1,0 +1,13 @@
+{
+  "title": "Rogue (1986)(Ascii)",
+  "file": "Rogue (1986)(Ascii).d88",
+  "sha1": "1c8ce5122cdee2fc95c97096695d614662b7c681",
+  "slot": "floppy",
+  "press": "1200:Key RETURN,1300:Key A,1320:Key B,1340:Key RETURN,1500:Key H,1540:Key H",
+  "before": 1500,
+  "frames": 1700,
+  "checks": [
+    {"what": "the status line is up: the game is being played", "row": 23, "startswith": "Level:1"},
+    {"what": "the player moved two squares left (H, H)", "find": "@", "moved": [0, -2]}
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "package": "np2kai",
+  "effectiveTerms": "MIT, BSD-2-Clause, BSD-3-Clause, the Berkeley SoftFloat terms and the fmgen terms, together",
+  "commercialUse": "prohibited without the prior consent of fmgen's author (cisc)",
+  "note": "The built core combines this repository's MIT integration with Neko Project II kai and the parts it compiles in. No GPL part is compiled (licence build A, docs/PLAN.md section 2): the OPL chips come from ymfm, the FPU is SoftFloat, and neither the DOSBox FPU nor the Trident card is built. fmgen's terms allow free modification and distribution if the origin is named, the result stays free software, changes are stated and its text is kept unchanged; putting it into commercial software (shareware included) needs its author's prior consent. The source of each part is linked below by exact commit.",
+  "components": [
+    {
+      "name": "chimera-core-np2kai (integration)",
+      "license": "MIT",
+      "url": "https://github.com/ShinobiWannabe/chimera-core-np2kai",
+      "commit": "{selfCommit}",
+      "file": "LICENSE",
+      "sourceUrl": "https://github.com/ShinobiWannabe/chimera-core-np2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "The keyboard picture (pictures/keyboard.png)",
+      "license": "MIT",
+      "url": "https://github.com/ShinobiWannabe/chimera-core-np2kai",
+      "commit": "{selfCommit}",
+      "file": "LICENSE",
+      "sourceUrl": "https://github.com/ShinobiWannabe/chimera-core-np2kai/archive/{commit}.tar.gz",
+      "note": "This project's own drawing, made by tools/draw-keyboard.py from the key table in waterbox/np2-input.h."
+    },
+    {
+      "name": "Neko Project II kai (NP2kai's own changes)",
+      "license": "MIT",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSE",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "Neko Project II (the NP2 base)",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/LICENSE.TXT",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz",
+      "note": "Applies to every source file not covered by another licence file in LICENSES/."
+    },
+    {
+      "name": "IA-32 CPU core (i386c)",
+      "license": "BSD-2-Clause",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/LICENSE-I386C.TXT",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "IA-32 FPU core (i386c/ia32/instructions/fpu)",
+      "license": "BSD-2-Clause",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/LICENSE-I386C-FPU.TXT",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "MMX and SSE instructions (i386c/ia32/instructions/mmx, sse*)",
+      "license": "BSD-2-Clause",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/LICENSE-I386C-SIMD.TXT",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "Berkeley SoftFloat Release 3e",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/softfloat3/COPYING.txt",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "Berkeley SoftFloat Release 2c",
+      "license": "SoftFloat-2c",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/softfloat/README.txt",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz",
+      "note": "Its Legal Notice is in this file."
+    },
+    {
+      "name": "fmgen (FM sound generator)",
+      "license": "fmgen terms (free software; commercial use needs the author's consent)",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/fmgen/fmgen_readme.txt",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz",
+      "note": "Kept unchanged, as its terms require. NP2's and NP2kai's changes to fmgen are described in fmgen_readme_np2.txt and fmgen_readme_kai.txt beside it."
+    },
+    {
+      "name": "fmgen: NP2's changes",
+      "license": "fmgen terms",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/fmgen/fmgen_readme_np2.txt",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "fmgen: NP2kai's changes",
+      "license": "fmgen terms",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/fmgen/fmgen_readme_kai.txt",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "ymfm (OPL sound chips, sound/mamebsd)",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/mamebsd/LICENSE-MAME-BSD.TXT",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "QEMU Cirrus CLGD 54xx VGA emulator (wab/cirrus_vga)",
+      "license": "MIT",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/LICENSE-GD54XX.TXT",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "LIO circle drawing (part of lio/gcircle.c, from QuuBee)",
+      "license": "MIT",
+      "url": "https://github.com/AZO234/NP2kai",
+      "commit": "{submodule:extern/NP2kai}",
+      "file": "extern/NP2kai/LICENSES/LICENSE-LIO.TXT",
+      "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "title": "Rusty (1993)(C-Lab)",
+  "file": "Rusty (1993)(C-Lab).hdi",
+  "sha1": "c86d25e78ee9feff51b9e62f895bdaa405c08e08",
+  "slot": "hdd",
+  "press": "1500:Key RETURN,1900:Key Z,2600:Key Z,2660:Key Z,2720:Key Z,2780:Key Z,2840:Key Z,3000:Key Pad 6:60",
+  "before": 3000,
+  "frames": 3100,
+  "checks": [
+    {
+      "what": "the play screen is up: its score label is drawn",
+      "box": [
+        462,
+        382,
+        100,
+        18
+      ],
+      "sha256": "e72eb40461b127a02bbdd6e50ec4f46fc6cf422cabcd4b16df52ae4b7105aeab"
+    },
+    {
+      "what": "the player walked right (keypad 6)",
+      "box": [
+        30,
+        150,
+        80,
+        180
+      ],
+      "changed": true
+    }
+  ]
+}

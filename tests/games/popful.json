@@ -1,0 +1,13 @@
+{
+  "title": "Popful Mail (1992)(Falcom), hard disk",
+  "file": "Popful Mail (1992)(Falcom).hdi",
+  "sha1": "f7783c7b143811e960a663349b4dce54cfbd4187",
+  "slot": "hdd",
+  "press": "1500:Key Down,1540:Key Down,1600:Key RETURN,2600:Key RETURN,4000:Key Right:40",
+  "before": 4000,
+  "frames": 4200,
+  "checks": [
+    {"what": "the play screen is up: its title bar is drawn", "box": [40, 2, 370, 24], "sha256": "4a4eac2f4ff3f98c850b0b3823e5d5122140043d6be02e569797a7c641298583"},
+    {"what": "the player walked on the map (Right)", "box": [16, 30, 448, 260], "changed": true}
+  ]
+}

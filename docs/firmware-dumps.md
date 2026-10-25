@@ -1,0 +1,176 @@
+# NP2kai core: alternative firmware dumps
+
+Oct 25, 2026 · @CHM
+
+## Summary
+
+The core now accepts **any** dump of each firmware file, so all 36 alternative dumps found in your three folders work. You chose option B. No firmware entry pins a hash any more. Before, FONT.ROM was pinned to your Epson dump and refused every other font. Chimera takes any file of the right size and records that file's own SHA1 in the project, so a movie still names the exact dumps it ran on.
+
+The wizard finds a file by its usual name (any case). If no file has that name, it looks for a file whose name contains a hint word and that has the right size, and takes it when there is only one. I added hints so the names other emulators use are found too.
+
+New package: `np2kai-8bee14b429d382f656798689338400d206a34937.chimeraCore`. The package checks pass. Only the declarations changed, so core.wbx is the same build as before.
+
+## Changes to the core
+
+| What | Before | Now |
+| --- | --- | --- |
+| FONT.ROM | Pinned to 78BA9960F135372825AB7244B5E4E73A810002FF | Any 288,768-byte font ROM |
+| BIOS.ROM, ITF.ROM, SOUND.ROM, IDE.ROM, 2608_*.WAV | Any file (no hash pinned) | Unchanged: any file |
+| SOUND.ROM name hints | sound | sound, sndbios (finds SNDBIOS.ROM) |
+| IDE.ROM name hints | ide | ide, bios9821 (finds IDEBIOS.ROM and bios9821.rom) |
+| FONT.BMP name hints | font (could wrongly take a FONT.ROM) | font.bmp |
+| FONT.ROM name hints | font | Unchanged (also finds FONT.DAT) |
+
+Files changed: `tools/gen-config.py`, `waterbox/waterbox.config`, `docs/firmware-dumps.md` (this report), and a log line in `docs/PLAN.md`. Nothing is committed.
+
+Sizes the core checks: BIOS.ROM 98,304 bytes, ITF.ROM 32,768, SOUND.ROM 16,384, IDE.ROM 8,192, FONT.ROM 288,768. FONT.BMP and the WAVs can be any size.
+
+## Notes on some files
+
+- **FONT.DAT** (NP2kai Linux folder) has the same layout as FONT.ROM, but with differently drawn characters. NP2kai reads it the same way when it is used as FONT.ROM.
+- **The 48 kHz rhythm WAVs** in retrobios `.variants` (2608_BD/HH/RIM/TOM/TOP.WAV) work, because both of NP2kai's rhythm players read the sample rate from the file. That folder has no 48 kHz snare drum; its 2608_SD.WAV is the 44.1 kHz one also found in your other folders.
+- **d8000.rom** (MAME, 32 KiB) is not taken as IDE.ROM, because the core asks for 8 KiB. Its first 8 KiB are exactly bios9821.rom, which is taken. Making the core accept the 32 KiB file would mean the IDE BIOS had no size check, and then any file with "ide" in its name could be picked.
+- **The wizard picks by hand when it can't choose.** If a folder holds several files with the same usual name, or several hint matches (for example, retrobios' `.variants` copies have hashes appended to their names), the user picks one.
+
+## Every file found, and what it was matched to
+
+"Original SHA1" is the hash the core pinned before this change. For files the core never pinned, it is the file your config.ini had chosen. "Same as original" means the dump is that file.
+
+| Core file | File found | Its SHA1 | Original SHA1 for that core file | Result |
+| --- | --- | --- | --- | --- |
+| 2608_BD.WAV | retrobios PC-98\2608_bd.wav | 0A56C142EF40CEC50F3EE56A6E42D0029C9E2818 | none pinned (your file: 0A56C142EF40CEC50F3EE56A6E42D0029C9E2818) | same as original |
+| 2608_BD.WAV | [BIOS]\YM2608 (OPNA) rhythm samples\2608_bd.wav | 8A1CF3C72683A2620BEF0737F1AA0C32BDE47AE5 | none pinned (your file: 0A56C142EF40CEC50F3EE56A6E42D0029C9E2818) | alternative |
+| 2608_BD.WAV | retrobios PC-98\.variants\2608_BD.WAV.22fb2cd4 | 22FB2CD4412DF057762C23DD22729EBCB922FE0E | none pinned (your file: 0A56C142EF40CEC50F3EE56A6E42D0029C9E2818) | alternative |
+| 2608_BD.WAV | retrobios PC-98\.variants\2608_bd.wav.8a1cf3c7 | 8A1CF3C72683A2620BEF0737F1AA0C32BDE47AE5 | none pinned (your file: 0A56C142EF40CEC50F3EE56A6E42D0029C9E2818) | alternative |
+| 2608_BD.WAV | sdlnp21kai\2608_BD.WAV | 8A1CF3C72683A2620BEF0737F1AA0C32BDE47AE5 | none pinned (your file: 0A56C142EF40CEC50F3EE56A6E42D0029C9E2818) | alternative |
+| 2608_HH.WAV | retrobios PC-98\2608_hh.wav | 12F676CEF249B82480B6F19C454E234B435CA7B6 | none pinned (your file: 12F676CEF249B82480B6F19C454E234B435CA7B6) | same as original |
+| 2608_HH.WAV | [BIOS]\YM2608 (OPNA) rhythm samples\2608_hh.wav | B4BBEFABE19B427A092DFD9279AD08D037C4E83B | none pinned (your file: 12F676CEF249B82480B6F19C454E234B435CA7B6) | alternative |
+| 2608_HH.WAV | retrobios PC-98\.variants\2608_HH.WAV.ac7bc5f6 | AC7BC5F6849EB16087C04E88680EA477D553B436 | none pinned (your file: 12F676CEF249B82480B6F19C454E234B435CA7B6) | alternative |
+| 2608_HH.WAV | retrobios PC-98\.variants\2608_hh.wav.b4bbefab | B4BBEFABE19B427A092DFD9279AD08D037C4E83B | none pinned (your file: 12F676CEF249B82480B6F19C454E234B435CA7B6) | alternative |
+| 2608_HH.WAV | sdlnp21kai\2608_HH.WAV | B4BBEFABE19B427A092DFD9279AD08D037C4E83B | none pinned (your file: 12F676CEF249B82480B6F19C454E234B435CA7B6) | alternative |
+| 2608_RIM.WAV | retrobios PC-98\2608_rim.wav | C65592330C9DD84011151DAED52F9AEC926B7E56 | none pinned (your file: C65592330C9DD84011151DAED52F9AEC926B7E56) | same as original |
+| 2608_RIM.WAV | [BIOS]\YM2608 (OPNA) rhythm samples\2608_rim.wav | 4382ACEB6968E3CB259CC7F2565A828494E0B3E6 | none pinned (your file: C65592330C9DD84011151DAED52F9AEC926B7E56) | alternative |
+| 2608_RIM.WAV | retrobios PC-98\.variants\2608_rim.wav.4382aceb | 4382ACEB6968E3CB259CC7F2565A828494E0B3E6 | none pinned (your file: C65592330C9DD84011151DAED52F9AEC926B7E56) | alternative |
+| 2608_RIM.WAV | retrobios PC-98\.variants\2608_RIM.WAV.4ecf900d | 4ECF900DB8D0F69D6154BDE376206D727DDDDAAE | none pinned (your file: C65592330C9DD84011151DAED52F9AEC926B7E56) | alternative |
+| 2608_RIM.WAV | sdlnp21kai\2608_RIM.WAV | 4382ACEB6968E3CB259CC7F2565A828494E0B3E6 | none pinned (your file: C65592330C9DD84011151DAED52F9AEC926B7E56) | alternative |
+| 2608_SD.WAV | retrobios PC-98\2608_sd.wav | 3C79663EF74C0B0439D13351326EB1C52A657008 | none pinned (your file: 3C79663EF74C0B0439D13351326EB1C52A657008) | same as original |
+| 2608_SD.WAV | [BIOS]\YM2608 (OPNA) rhythm samples\2608_sd.wav | 0EA4F93B81DF9DBB8D48590B440F5910C0B798B6 | none pinned (your file: 3C79663EF74C0B0439D13351326EB1C52A657008) | alternative |
+| 2608_SD.WAV | retrobios PC-98\.variants\2608_SD.WAV.0ea4f93b | 0EA4F93B81DF9DBB8D48590B440F5910C0B798B6 | none pinned (your file: 3C79663EF74C0B0439D13351326EB1C52A657008) | alternative |
+| 2608_SD.WAV | sdlnp21kai\2608_SD.WAV | 0EA4F93B81DF9DBB8D48590B440F5910C0B798B6 | none pinned (your file: 3C79663EF74C0B0439D13351326EB1C52A657008) | alternative |
+| 2608_TOM.WAV | retrobios PC-98\2608_tom.wav | 9513FB4A3F41E75A972A273A5104CBD834C1E2C5 | none pinned (your file: 9513FB4A3F41E75A972A273A5104CBD834C1E2C5) | same as original |
+| 2608_TOM.WAV | [BIOS]\YM2608 (OPNA) rhythm samples\2608_tom.wav | DCF9DA3CE28608B6BB177B35C16EE6F7057CFF5B | none pinned (your file: 9513FB4A3F41E75A972A273A5104CBD834C1E2C5) | alternative |
+| 2608_TOM.WAV | retrobios PC-98\.variants\2608_TOM.WAV.aa29f5e4 | AA29F5E47CBD710077FA723929592C66D8BCB876 | none pinned (your file: 9513FB4A3F41E75A972A273A5104CBD834C1E2C5) | alternative |
+| 2608_TOM.WAV | retrobios PC-98\.variants\2608_tom.wav.dcf9da3c | DCF9DA3CE28608B6BB177B35C16EE6F7057CFF5B | none pinned (your file: 9513FB4A3F41E75A972A273A5104CBD834C1E2C5) | alternative |
+| 2608_TOM.WAV | sdlnp21kai\2608_TOM.WAV | DCF9DA3CE28608B6BB177B35C16EE6F7057CFF5B | none pinned (your file: 9513FB4A3F41E75A972A273A5104CBD834C1E2C5) | alternative |
+| 2608_TOP.WAV | retrobios PC-98\2608_top.wav | AA4A8F766A86B830687D5083FD3B9DB0652F46FC | none pinned (your file: AA4A8F766A86B830687D5083FD3B9DB0652F46FC) | same as original |
+| 2608_TOP.WAV | [BIOS]\YM2608 (OPNA) rhythm samples\2608_top.wav | 31E6381C65A562574299F2ADD724DC808FCB5DD3 | none pinned (your file: AA4A8F766A86B830687D5083FD3B9DB0652F46FC) | alternative |
+| 2608_TOP.WAV | retrobios PC-98\.variants\2608_top.wav.31e6381c | 31E6381C65A562574299F2ADD724DC808FCB5DD3 | none pinned (your file: AA4A8F766A86B830687D5083FD3B9DB0652F46FC) | alternative |
+| 2608_TOP.WAV | retrobios PC-98\.variants\2608_TOP.WAV.a160bf60 | A160BF60A4F148FD191EDC989429E6909D431FCB | none pinned (your file: AA4A8F766A86B830687D5083FD3B9DB0652F46FC) | alternative |
+| 2608_TOP.WAV | sdlnp21kai\2608_TOP.WAV | 31E6381C65A562574299F2ADD724DC808FCB5DD3 | none pinned (your file: AA4A8F766A86B830687D5083FD3B9DB0652F46FC) | alternative |
+| BIOS.ROM | [BIOS]\NEC PC-9821V13\bios.rom | 76A7360502FA0296EA93B4C537174610A834D367 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | same as original |
+| BIOS.ROM | retrobios PC-98\bios.rom | 76A7360502FA0296EA93B4C537174610A834D367 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | same as original |
+| BIOS.ROM | [BIOS]\Epson PC-486HX\bios.rom | 159549F845DC70BF61955F9469D2281A0131B47F | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | [BIOS]\Epson PC-486MU\bios.rom | 15029800842E93E07615B0FD91FB9F2BFE3E3C24 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | [BIOS]\NEC PC-9801 (unknown model)\bios.rom | 4F208D1DBB68373080D23BFF5636BB6B71EB7565 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | [BIOS]\NEC PC-9801UX\bios.rom | BFE458F671D90692104D0640730972CA8DC0A100 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | [BIOS]\NEC PC-9821 (unknown model)\bios.rom | 2E92346727B0355BC1EC9A7DED1B444A4917F2B9 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | [BIOS]\NEC PC-9821Ce2\bios.rom | 910FAE6763C0CD59B3957B6CDE479C72E21F33C1 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | [BIOS]\NEC PC-9821V20\bios.rom | BF44B5F4E138E036F1B848D6616FBD41B5549764 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | retrobios PC-98\.variants\bios.rom.2e923467 | 2E92346727B0355BC1EC9A7DED1B444A4917F2B9 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | retrobios PC-98\.variants\BIOS.ROM.910fae67 | 910FAE6763C0CD59B3957B6CDE479C72E21F33C1 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| BIOS.ROM | sdlnp21kai\BIOS.ROM | 15029800842E93E07615B0FD91FB9F2BFE3E3C24 | none pinned (your file: 76A7360502FA0296EA93B4C537174610A834D367) | alternative |
+| FONT.BMP | [BIOS]\Epson PC-486HX\font.bmp | B6448ED1644DB5A17267D5F8EB909185DE8BADA5 | none pinned (no file chosen) | alternative |
+| FONT.BMP | retrobios PC-98\font.bmp | B4F14E58030ED40FFF2DC312B58EA4440BDF8CC5 | none pinned (no file chosen) | alternative |
+| FONT.ROM | [BIOS]\Epson PC-486HX\font.rom | 78BA9960F135372825AB7244B5E4E73A810002FF | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | same as original |
+| FONT.ROM | [BIOS]\Epson PC-486MU\font.rom | 78BA9960F135372825AB7244B5E4E73A810002FF | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | same as original |
+| FONT.ROM | retrobios PC-98\font.rom | 78BA9960F135372825AB7244B5E4E73A810002FF | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | same as original |
+| FONT.ROM | sdlnp21kai\FONT.ROM | 78BA9960F135372825AB7244B5E4E73A810002FF | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | same as original |
+| FONT.ROM | [BIOS]\NEC PC-9801 (unknown model)\font.rom | 584D0C7FDE8C7EAC1F76DC5E242102261A878C5E | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| FONT.ROM | [BIOS]\NEC PC-9801UX\font.rom | 96A006E8515157A624599C2B53A581AE0DD560FD | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| FONT.ROM | [BIOS]\NEC PC-9821 (unknown model)\font.rom | 554B87377D176830D21BD03964DC71F8E98676B1 | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| FONT.ROM | [BIOS]\NEC PC-9821Ce2\font.rom | E7781E9D35B6511D12631641D029AD2BA3F7DAEF | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| FONT.ROM | [BIOS]\NEC PC-9821V13\font.rom | DEB8563712EB2A634A157289838B95098BA0C7F2 | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| FONT.ROM | [BIOS]\NEC PC-9821V20\font.rom | 9513CAC321E89B4EDB067B30E9ECB1ADAE7E7BE7 | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| FONT.ROM | retrobios PC-98\.variants\FONT.ROM.541271ea | 541271EA46C5166A1E054379963B0DC663E9B60F | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| FONT.ROM | retrobios PC-98\.variants\FONT.ROM.554b8737 | 554B87377D176830D21BD03964DC71F8E98676B1 | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| FONT.ROM | sdlnp21kai\FONT.DAT | DB6A323176E1788A4C23A4D661323705373DE420 | 78BA9960F135372825AB7244B5E4E73A810002FF (pinned) | alternative |
+| IDE.ROM | retrobios PC-98\ide.rom | 0877FFB4B4D1C18283468BE3579B72ED8C22E3AC | none pinned (your file: 0877FFB4B4D1C18283468BE3579B72ED8C22E3AC) | same as original |
+| IDE.ROM | sdlnp21kai\IDEBIOS.ROM | 0877FFB4B4D1C18283468BE3579B72ED8C22E3AC | none pinned (your file: 0877FFB4B4D1C18283468BE3579B72ED8C22E3AC) | same as original |
+| IDE.ROM | retrobios PC-98\bios9821.rom | 48B35384CD148C0CC10EC52D308AF50D33916C7C | none pinned (your file: 0877FFB4B4D1C18283468BE3579B72ED8C22E3AC) | alternative |
+| ITF.ROM | [BIOS]\NEC PC-9801 (unknown model)\itf.rom | A2FB11C000ED7C976520622CFB7940ED6DDC904E | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | same as original |
+| ITF.ROM | retrobios PC-98\itf.rom | A2FB11C000ED7C976520622CFB7940ED6DDC904E | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | same as original |
+| ITF.ROM | [BIOS]\NEC PC-9801UX\itf.rom | 61BB210D64C7264BE939B11DF1E9CD14FFEEE3C9 | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | alternative |
+| ITF.ROM | [BIOS]\NEC PC-9821 (unknown model)\itf.rom | CF3AA193DF2722899066246BCCBED03F2E79A74A | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | alternative |
+| ITF.ROM | [BIOS]\NEC PC-9821Ce2\itf.rom | 9BCA7D5116788776ED0F297BCCB4DFC485379B41 | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | alternative |
+| ITF.ROM | [BIOS]\NEC PC-9821V20\itf.rom | F95B8648E3F5A23E507A9FBDA8AB2E317D8E5151 | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | alternative |
+| ITF.ROM | retrobios PC-98\.variants\ITF.ROM.9bca7d51 | 9BCA7D5116788776ED0F297BCCB4DFC485379B41 | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | alternative |
+| ITF.ROM | retrobios PC-98\.variants\itf.rom.cf3aa193 | CF3AA193DF2722899066246BCCBED03F2E79A74A | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | alternative |
+| ITF.ROM | sdlnp21kai\ITF.ROM | CF3AA193DF2722899066246BCCBED03F2E79A74A | none pinned (your file: A2FB11C000ED7C976520622CFB7940ED6DDC904E) | alternative |
+| SOUND.ROM | [BIOS]\Epson PC-486HX\sound.rom | D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | same as original |
+| SOUND.ROM | retrobios PC-98\sound.rom | D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | same as original |
+| SOUND.ROM | [BIOS]\Epson PC-486MU\sound.rom | 4B8250F9B9DB66548B79F961D61010558D6D6E1C | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | [BIOS]\NEC PC-9801 (unknown model)\sound.rom | E09C54152C8093E1724842C711AED6417169DB23 | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | [BIOS]\NEC PC-9801-86 Sound Board\sound.rom | E09C54152C8093E1724842C711AED6417169DB23 | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | [BIOS]\NEC PC-9801UX\sound.rom | E09C54152C8093E1724842C711AED6417169DB23 | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | [BIOS]\NEC PC-9821 (unknown model)\sound.rom | 34137C287C39C44300B04EE97C1E6459BB826B60 | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | [BIOS]\NEC PC-9821Ce2\sound.rom | 34137C287C39C44300B04EE97C1E6459BB826B60 | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | retrobios PC-98\.variants\SOUND.ROM.34137c28 | 34137C287C39C44300B04EE97C1E6459BB826B60 | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | retrobios PC-98\.variants\sound.rom.e09c5415 | E09C54152C8093E1724842C711AED6417169DB23 | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | sdlnp21kai\SNDBIOS.ROM | E09C54152C8093E1724842C711AED6417169DB23 | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+| SOUND.ROM | sdlnp21kai\SOUND.ROM | 4B8250F9B9DB66548B79F961D61010558D6D6E1C | none pinned (your file: D5DBC4FEA3B8367024D363F5351BAECD6ADCD8EF) | alternative |
+
+## The 36 alternative dumps now accepted
+
+| Core file | Accepted SHA1 | Found in |
+| --- | --- | --- |
+| 2608_BD.WAV | 22FB2CD4412DF057762C23DD22729EBCB922FE0E | retrobios PC-98\.variants\2608_BD.WAV.22fb2cd4 |
+| 2608_BD.WAV | 8A1CF3C72683A2620BEF0737F1AA0C32BDE47AE5 | [BIOS]\YM2608 (OPNA) rhythm samples\2608_bd.wav; retrobios PC-98\.variants\2608_bd.wav.8a1cf3c7; sdlnp21kai\2608_BD.WAV |
+| 2608_HH.WAV | AC7BC5F6849EB16087C04E88680EA477D553B436 | retrobios PC-98\.variants\2608_HH.WAV.ac7bc5f6 |
+| 2608_HH.WAV | B4BBEFABE19B427A092DFD9279AD08D037C4E83B | [BIOS]\YM2608 (OPNA) rhythm samples\2608_hh.wav; retrobios PC-98\.variants\2608_hh.wav.b4bbefab; sdlnp21kai\2608_HH.WAV |
+| 2608_RIM.WAV | 4382ACEB6968E3CB259CC7F2565A828494E0B3E6 | [BIOS]\YM2608 (OPNA) rhythm samples\2608_rim.wav; retrobios PC-98\.variants\2608_rim.wav.4382aceb; sdlnp21kai\2608_RIM.WAV |
+| 2608_RIM.WAV | 4ECF900DB8D0F69D6154BDE376206D727DDDDAAE | retrobios PC-98\.variants\2608_RIM.WAV.4ecf900d |
+| 2608_SD.WAV | 0EA4F93B81DF9DBB8D48590B440F5910C0B798B6 | [BIOS]\YM2608 (OPNA) rhythm samples\2608_sd.wav; retrobios PC-98\.variants\2608_SD.WAV.0ea4f93b; sdlnp21kai\2608_SD.WAV |
+| 2608_TOM.WAV | AA29F5E47CBD710077FA723929592C66D8BCB876 | retrobios PC-98\.variants\2608_TOM.WAV.aa29f5e4 |
+| 2608_TOM.WAV | DCF9DA3CE28608B6BB177B35C16EE6F7057CFF5B | [BIOS]\YM2608 (OPNA) rhythm samples\2608_tom.wav; retrobios PC-98\.variants\2608_tom.wav.dcf9da3c; sdlnp21kai\2608_TOM.WAV |
+| 2608_TOP.WAV | 31E6381C65A562574299F2ADD724DC808FCB5DD3 | [BIOS]\YM2608 (OPNA) rhythm samples\2608_top.wav; retrobios PC-98\.variants\2608_top.wav.31e6381c; sdlnp21kai\2608_TOP.WAV |
+| 2608_TOP.WAV | A160BF60A4F148FD191EDC989429E6909D431FCB | retrobios PC-98\.variants\2608_TOP.WAV.a160bf60 |
+| BIOS.ROM | 15029800842E93E07615B0FD91FB9F2BFE3E3C24 | [BIOS]\Epson PC-486MU\bios.rom; sdlnp21kai\BIOS.ROM |
+| BIOS.ROM | 159549F845DC70BF61955F9469D2281A0131B47F | [BIOS]\Epson PC-486HX\bios.rom |
+| BIOS.ROM | 2E92346727B0355BC1EC9A7DED1B444A4917F2B9 | [BIOS]\NEC PC-9821 (unknown model)\bios.rom; retrobios PC-98\.variants\bios.rom.2e923467 |
+| BIOS.ROM | 4F208D1DBB68373080D23BFF5636BB6B71EB7565 | [BIOS]\NEC PC-9801 (unknown model)\bios.rom |
+| BIOS.ROM | 910FAE6763C0CD59B3957B6CDE479C72E21F33C1 | [BIOS]\NEC PC-9821Ce2\bios.rom; retrobios PC-98\.variants\BIOS.ROM.910fae67 |
+| BIOS.ROM | BF44B5F4E138E036F1B848D6616FBD41B5549764 | [BIOS]\NEC PC-9821V20\bios.rom |
+| BIOS.ROM | BFE458F671D90692104D0640730972CA8DC0A100 | [BIOS]\NEC PC-9801UX\bios.rom |
+| FONT.BMP | B4F14E58030ED40FFF2DC312B58EA4440BDF8CC5 | retrobios PC-98\font.bmp |
+| FONT.BMP | B6448ED1644DB5A17267D5F8EB909185DE8BADA5 | [BIOS]\Epson PC-486HX\font.bmp |
+| FONT.ROM | 541271EA46C5166A1E054379963B0DC663E9B60F | retrobios PC-98\.variants\FONT.ROM.541271ea |
+| FONT.ROM | 554B87377D176830D21BD03964DC71F8E98676B1 | [BIOS]\NEC PC-9821 (unknown model)\font.rom; retrobios PC-98\.variants\FONT.ROM.554b8737 |
+| FONT.ROM | 584D0C7FDE8C7EAC1F76DC5E242102261A878C5E | [BIOS]\NEC PC-9801 (unknown model)\font.rom |
+| FONT.ROM | 9513CAC321E89B4EDB067B30E9ECB1ADAE7E7BE7 | [BIOS]\NEC PC-9821V20\font.rom |
+| FONT.ROM | 96A006E8515157A624599C2B53A581AE0DD560FD | [BIOS]\NEC PC-9801UX\font.rom |
+| FONT.ROM | DB6A323176E1788A4C23A4D661323705373DE420 | sdlnp21kai\FONT.DAT |
+| FONT.ROM | DEB8563712EB2A634A157289838B95098BA0C7F2 | [BIOS]\NEC PC-9821V13\font.rom |
+| FONT.ROM | E7781E9D35B6511D12631641D029AD2BA3F7DAEF | [BIOS]\NEC PC-9821Ce2\font.rom |
+| IDE.ROM | 48B35384CD148C0CC10EC52D308AF50D33916C7C | retrobios PC-98\bios9821.rom |
+| ITF.ROM | 61BB210D64C7264BE939B11DF1E9CD14FFEEE3C9 | [BIOS]\NEC PC-9801UX\itf.rom |
+| ITF.ROM | 9BCA7D5116788776ED0F297BCCB4DFC485379B41 | [BIOS]\NEC PC-9821Ce2\itf.rom; retrobios PC-98\.variants\ITF.ROM.9bca7d51 |
+| ITF.ROM | CF3AA193DF2722899066246BCCBED03F2E79A74A | [BIOS]\NEC PC-9821 (unknown model)\itf.rom; retrobios PC-98\.variants\itf.rom.cf3aa193; sdlnp21kai\ITF.ROM |
+| ITF.ROM | F95B8648E3F5A23E507A9FBDA8AB2E317D8E5151 | [BIOS]\NEC PC-9821V20\itf.rom |
+| SOUND.ROM | 34137C287C39C44300B04EE97C1E6459BB826B60 | [BIOS]\NEC PC-9821 (unknown model)\sound.rom; [BIOS]\NEC PC-9821Ce2\sound.rom; retrobios PC-98\.variants\SOUND.ROM.34137c28 |
+| SOUND.ROM | 4B8250F9B9DB66548B79F961D61010558D6D6E1C | [BIOS]\Epson PC-486MU\sound.rom; sdlnp21kai\SOUND.ROM |
+| SOUND.ROM | E09C54152C8093E1724842C711AED6417169DB23 | [BIOS]\NEC PC-9801 (unknown model)\sound.rom; [BIOS]\NEC PC-9801-86 Sound Board\sound.rom; [BIOS]\NEC PC-9801UX\sound.rom; retrobios PC-98\.variants\sound.rom.e09c5415; sdlnp21kai\SNDBIOS.ROM |
+
+## Files found that the core does not use
+
+| File found | Size | Its SHA1 | Why it is not used |
+| --- | --- | --- | --- |
+| retrobios PC-98\d8000.rom | 32768 | D0DEAD41C5B763008A4D777AEDDDCE651EB6DCBB | 32 KiB; the core takes only an 8 KiB IDE BIOS (its first 8 KiB are bios9821.rom) |
+| retrobios PC-98\pci.rom | 32768 | 1246203BEBF9F04E3BAC2DF7FC64719304F9F1BD | PCI BIOS; not one of the core's firmware files |
+| retrobios PC-98\sasi.rom | 4096 | B607707D74B5A7D3BA211825DE31A8F32AEC8146 | SASI BIOS; not one of the core's firmware files |
+| retrobios PC-98\scsi.rom | 8192 | 3D7166F05DAAD1B022FA04C2569E788580158095 | SCSI BIOS; not one of the core's firmware files |
+| retrobios PC-98\.variants\font.rom.425a896a | 6144 | 425A896AF83386C7BAFAC59F94211CDBB9CCE18D | 6144 bytes, not a 288768-byte font ROM |
+| sdlnp21kai\BANK.ROM | 131072 | F782F209CF527C3AA48662541E0DA85BA19F91C6 | not a file name NP2kai reads |
+| sdlnp21kai\RHYTHM.DAT | 159776 | 484DC3F452085AAA679201685D01C14951DE4358 | not a file name NP2kai reads |
+| sdlnp21kai\SCSIBIOS.ROM | 8192 | 3D7166F05DAAD1B022FA04C2569E788580158095 | SCSI BIOS; not one of the core's firmware files |
+
+Hashes and file names only; no firmware was copied or uploaded.

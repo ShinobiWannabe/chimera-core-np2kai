@@ -1,0 +1,62 @@
+{
+  "_comment": "The kinds of file a project of this core holds; Chimera's New Project window is built from it. A max of -1 means no limit. The driver reads the slots in this order (waterbox/np2-driver.c).",
+  "slots": [
+    {
+      "id": "floppy",
+      "title": "Floppy disks",
+      "min": 0,
+      "max": -1,
+      "formats": [
+        "d88",
+        "88d",
+        "d98",
+        "98d",
+        "fdi",
+        "hdm",
+        "xdf",
+        "dup",
+        "2hd",
+        "tfd",
+        "nfd",
+        "dcp",
+        "dcu"
+      ],
+      "help": "Floppy disk images (.d88, .fdi, .hdm, .nfd, .dcp and the other PC-98 formats). The first is in drive 1 and the second in drive 2 when the machine starts. The order here is the order the Previous, Next and Swap Floppy Disk inputs go through. What the machine writes to a disk stays for the session and can be exported as save data."
+    },
+    {
+      "id": "hdd",
+      "title": "Hard disks",
+      "min": 0,
+      "max": 2,
+      "formats": [
+        "hdi",
+        "nhd",
+        "thd",
+        "vhd"
+      ],
+      "help": "Hard disk images (.hdi, .nhd, .thd or .vhd). The first is the first hard disk (IDE on the PC9821 machine, SASI on the PC98 one), the one the machine starts from when no floppy is in drive 1. What the machine writes stays for the session and can be exported as save data, and an exported image can be given here to continue from it."
+    },
+    {
+      "id": "cdrom",
+      "title": "CD-ROM",
+      "min": 0,
+      "max": 1,
+      "formats": [
+        "cue",
+        "iso"
+      ],
+      "help": "A CD-ROM image for the IDE CD-ROM drive, which only the PC9821 machine has: a .cue sheet with its track files (one .bin for the whole disc or one per track), or an .iso. A CloneCD .ccd can be converted to .cue and .bin first. A PC-98 cannot start from a CD, so a CD game also needs its boot floppy or a hard disk with its driver.",
+      "exposedWhen": {
+        "setting": "machine",
+        "is": "PC9821"
+      }
+    }
+  ],
+  "atLeastOneOf": [
+    [
+      "floppy",
+      "hdd",
+      "cdrom"
+    ]
+  ]
+}
