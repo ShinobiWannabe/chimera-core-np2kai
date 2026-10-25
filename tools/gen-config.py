@@ -347,13 +347,14 @@ print('waterbox.config written: %d buttons, %d settings, %d firmware, vsync %d/%
 # Ctrl as Ctrl and either Alt as Alt (chimera docs/new-core.md), so the
 # right-hand Ctrl and Alt the SDL build gives GRPH and XFER could never
 # reach them. GRPH is Alt instead, and NFER and XFER are the Japanese
-# keyboard's own keys (muhenkan and henkan). vf.1 and vf.2 are Ctrl+F11 and
-# Ctrl+F12, so they stay clear of Chimera's F12 screenshot hotkey.
+# keyboard's own keys (muhenkan and henkan). STOP is Shift+Pause and vf.1
+# and vf.2 Ctrl+F11 and Ctrl+F12, clear of Chimera's Pause and Screenshot
+# hotkeys.
 # KANA ships unbound too: the frontend sends the kana key as "HangulMode",
 # a name nobody would look for. vf.3-vf.5, the underscore and keypad = and ,
 # have no PC key.
 HOST = {
-    'Key STOP': 'Pause', 'Key COPY': 'PrintScreen',
+    'Key STOP': 'Shift+Pause', 'Key COPY': 'PrintScreen',
     'Key ESC': 'Escape', 'Key Minus': 'Minus', 'Key Caret': 'Equals', 'Key Yen': 'Backtick',
     'Key BS': 'Backspace', 'Key ROLL UP': 'PageUp', 'Key ROLL DOWN': 'PageDown',
     'Key HOME CLR': 'Home', 'Key HELP': 'End', 'Key Pad Minus': 'KeypadSubtract',

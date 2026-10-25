@@ -8,7 +8,7 @@
   ],
   "AllTrollers": {
     "PC-98 Controller": {
-      "Key STOP": "Pause",
+      "Key STOP": "Shift+Pause",
       "Key COPY": "PrintScreen",
       "Key f.1": "F1",
       "Key f.2": "F2",
