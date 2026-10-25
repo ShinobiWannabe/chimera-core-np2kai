@@ -1,1 +1,3 @@
 build/
+# hand-made transfer bundles
+core-*.zip
