@@ -134,12 +134,12 @@
   },
   "AllTrollersAnalog": {
     "PC-98 Controller": {
-      "Mouse Speed X": {
+      "Mouse X": {
         "Value": "RMouse X",
         "Mult": 1.0,
         "Deadzone": 0.0
       },
-      "Mouse Speed Y": {
+      "Mouse Y": {
         "Value": "RMouse Y",
         "Mult": 1.0,
         "Deadzone": 0.0

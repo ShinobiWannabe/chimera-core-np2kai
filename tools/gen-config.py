@@ -100,8 +100,8 @@ for k, v in mnemonics.items():
     assert len(v) == 1 and 32 < ord(v) < 127 and v not in '.|', (k, v)
 
 AXES = [
-    {"name": "Mouse Speed X", "min": -180, "max": 180, "neutral": 0, "header": "msX"},
-    {"name": "Mouse Speed Y", "min": -180, "max": 180, "neutral": 0, "header": "msY"},
+    {"name": "Mouse X", "min": -180, "max": 180, "neutral": 0, "header": "MX"},
+    {"name": "Mouse Y", "min": -180, "max": 180, "neutral": 0, "header": "MY"},
 ]
 # the order is the driver's NP2_AXIS_*
 assert re.search(r'#define NP2_AXIS_MOUSE_X 0', INPUT_H) and re.search(r'#define NP2_AXIS_MOUSE_Y 1', INPUT_H)
@@ -400,8 +400,8 @@ KEYBINDS = {
     "AllTrollers": {"PC-98 Controller": binds},
     "AllTrollersAutoFire": {"PC-98 Controller": {}},
     "AllTrollersAnalog": {"PC-98 Controller": {
-        "Mouse Speed X": {"Value": "RMouse X", "Mult": 1.0, "Deadzone": 0.0},
-        "Mouse Speed Y": {"Value": "RMouse Y", "Mult": 1.0, "Deadzone": 0.0},
+        "Mouse X": {"Value": "RMouse X", "Mult": 1.0, "Deadzone": 0.0},
+        "Mouse Y": {"Value": "RMouse Y", "Mult": 1.0, "Deadzone": 0.0},
     }},
 }
 with open(os.path.join(WB, 'default_keybinds.json'), 'w', encoding='utf-8') as f:
