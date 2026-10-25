@@ -45,7 +45,7 @@ if [ "$FLAVOUR" = both ]; then
   for f in np21 np2; do
     NP2_HALF_BUILD=1 NP2_OUT= sh "$0" "$f" || exit 1
   done
-  gcc $GUEST -O2 -c "$here/np2-entry.c" -o "$out/obj/np2-entry.o" || exit 1
+  gcc $GUEST -O2 $NP2_ZEROINIT -c "$here/np2-entry.c" -o "$out/obj/np2-entry.o" || exit 1
   # A name both halves still define would be one function for two machines:
   # only the renamed exports may be global, and those differ by prefix.
   dup=$(for f in np21 np2; do nm -g --defined-only "$root/build/wbx-$f/half.o" | awk '{print $3}' | grep -v "^${f}_"; done | sort | uniq -d)

@@ -49,6 +49,16 @@ fi
 NP2_CFLAGS="-Wno-implicit-function-declaration -Wno-incompatible-pointer-types -Wno-int-conversion"
 NP2_CXXFLAGS="-fno-sized-deallocation"
 
+# Every local variable starts at zero (issue #2). NP2kai copies locals it
+# never fully set into the machine (descriptor_t's d_pad, from the
+# "descriptor_t sd;" locals in i386c/ia32), so whatever was on the stack
+# reached savestates. On Windows the host's exception delivery leaves its
+# own bytes on the guest stack (miniBox docs/RED-ZONE.md), so a Windows
+# savestate could differ from a Linux one by those bytes.
+NP2_ZEROINIT="-ftrivial-auto-var-init=zero"
+NP2_CFLAGS="$NP2_CFLAGS $NP2_ZEROINIT"
+NP2_CXXFLAGS="$NP2_CXXFLAGS $NP2_ZEROINIT"
+
 # Per-file flags. fdd/sxsi.c builds its own GetTickCount() on gettimeofday()
 # and times a CD change with it (sxsi.c:29,306,344), so in that file the host
 # clock is swapped for the emulated one (waterbox/port/platform.c).
