@@ -347,7 +347,8 @@ print('waterbox.config written: %d buttons, %d settings, %d firmware, vsync %d/%
 # Ctrl as Ctrl and either Alt as Alt (chimera docs/new-core.md), so the
 # right-hand Ctrl and Alt the SDL build gives GRPH and XFER could never
 # reach them. GRPH is Alt instead, and NFER and XFER are the Japanese
-# keyboard's own keys (muhenkan and henkan). vf.1 and vf.2 are F11 and F12.
+# keyboard's own keys (muhenkan and henkan). vf.1 and vf.2 are Ctrl+F11 and
+# Ctrl+F12, so they stay clear of Chimera's F12 screenshot hotkey.
 # KANA ships unbound too: the frontend sends the kana key as "HangulMode",
 # a name nobody would look for. vf.3-vf.5, the underscore and keypad = and ,
 # have no PC key.
@@ -366,7 +367,7 @@ HOST = {
     'Key CAPS': 'CapsLock', 'Key GRPH': 'Alt, LeftAlt',
     'Key NFER': 'ImeNonConvert',
     'Key SPACE': 'Space', 'Key XFER': 'ImeConvert', 'Key Down': 'Down',
-    'Key vf.1': 'F11', 'Key vf.2': 'F12',
+    'Key vf.1': 'Ctrl+F11', 'Key vf.2': 'Ctrl+F12',
     'Key Pad Period': 'KeypadDecimal',
     'Mouse Left Button': 'WMouse L', 'Mouse Right Button': 'WMouse R',
     # the arrows are the keyboard's, so the stick is on the game pad only
