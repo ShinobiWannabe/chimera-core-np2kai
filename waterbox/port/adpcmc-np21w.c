@@ -1,0 +1,179 @@
+/* adpcmc-np21w.c - the OPNA ADPCM registers, with Neko Project 21/W
+ * ver0.86 rev105's fix ("ADPCMの不具合修正").
+ *
+ * sound/adpcmc.c as NP2kai 5939e0c has it, compiled instead of upstream's
+ * (tools/sources.py), with one change taken from NP21/W rev106: a byte the
+ * CPU feeds to the ADPCM (control 1 = 80h, playback from the CPU) is the
+ * data register's (08h). Upstream queued it from the delta registers (09h,
+ * 0Ah), in an else that belonged to their lower limit, so CPU playback got
+ * the delta's bytes and none of the data. Delete this file and its
+ * sources.py line when the NP2kai pin has the fix.
+ */
+/**
+ * @file	adpcmc.c
+ * @brief	Implementation of the OPNA ADPCM
+ */
+
+#include <compiler.h>
+#include "adpcm.h"
+#include <sound/opngen.h>
+
+	ADPCMCFG	adpcmcfg;
+
+void adpcm_initialize(UINT rate) {
+
+	adpcmcfg.rate = rate;
+}
+
+void adpcm_setvol(UINT vol) {
+
+	adpcmcfg.vol = vol;
+}
+
+static void adpcm_cpufifo_reset(ADPCM ad) {
+
+	ad->cfifo.cpufiford = 0;
+	ad->cfifo.cpufifowr = 0;
+	ad->cfifo.cpufifocount = 0;
+	ad->cpufifolow = 0;
+	ad->cfifo.cpufifocur = 0;
+}
+
+static void adpcm_cpuwrite(ADPCM ad, REG8 data) {
+
+	if (ad->cfifo.cpufifocount < ADPCM_CPUFIFO_SIZE) {
+		ad->cfifo.cpufifo[ad->cfifo.cpufifowr & ADPCM_CPUFIFO_MASK] = data;
+		ad->cfifo.cpufifowr++;
+		ad->cfifo.cpufifocount++;
+	}
+}
+
+void adpcm_reset(ADPCM ad) {
+
+	memset(ad, 0, sizeof(*ad));
+	ad->mask = 0;					// (UINT8)~0x1c;
+	ad->delta = 127;
+	STOREINTELWORD(ad->reg.stop, 0x0002);
+	STOREINTELWORD(ad->reg.limit, 0xffff);
+	ad->stop = 0x000060;
+	ad->limit = 0x200000;
+	adpcm_update(ad);
+}
+
+void adpcm_update(ADPCM ad) {
+
+	UINT32	addr;
+
+	if (adpcmcfg.rate) {
+		ad->base = ADTIMING * (OPNA_CLOCK / 72) / adpcmcfg.rate;
+	}
+	addr = LOADINTELWORD(ad->reg.delta);
+	addr = (addr * ad->base) >> 16;
+	if (addr < 0x100) {
+		addr = 0x100;
+	}
+	ad->step = addr;
+	ad->pertim = (1 << (ADTIMING_BIT * 2)) / addr;
+	ad->level = (ad->reg.level * adpcmcfg.vol) >> 4;
+}
+
+void adpcm_setreg(ADPCM ad, UINT reg, REG8 value) {
+
+	UINT32	addr;
+
+	sound_sync();
+	((UINT8 *)(&ad->reg))[reg] = value;
+	switch(reg) {
+		case 0x00:								// control1
+			if ((value & 0x80) && (!ad->play)) {
+				ad->play = 0x20;
+				ad->pos = ad->start;
+				ad->cpustream = ((value & 0xe0) == 0x80);
+				if (!ad->cpustream) {
+					ad->pos = ad->start;
+				}
+				else {
+					adpcm_cpufifo_reset(ad);
+				}
+				ad->samp = 0;
+				ad->delta = 127;
+				ad->remain = 0;
+				ad->out0 = 0;
+				ad->out1 = 0;
+				ad->fb = 0;
+			}
+			if (value & 1) {
+				ad->play = 0;
+				ad->cpustream = 0;
+				adpcm_cpufifo_reset(ad);
+			}
+			break;
+
+		case 0x01:								// control2
+			break;
+
+		case 0x02:	case 0x03:					// start address
+			addr = (LOADINTELWORD(ad->reg.start)) << 5;
+			ad->pos = addr;
+			ad->start = addr;
+			break;
+
+		case 0x04:	case 0x05:					// stop address
+			addr = (LOADINTELWORD(ad->reg.stop) + 1) << 5;
+			ad->stop = addr;
+			break;
+
+		case 0x08:								// data
+			if ((ad->reg.ctrl1 & 0x60) == 0x60) {
+				adpcm_datawrite(ad, value);
+			}
+			else if ((ad->reg.ctrl1 & 0xe0) == 0x80) {
+				adpcm_cpuwrite(ad, value);
+			}
+			break;
+
+		case 0x09:	case 0x0a:					// delta
+			addr = LOADINTELWORD(ad->reg.delta);
+			addr = (addr * ad->base) >> 16;
+			if (addr < 0x100) {
+				addr = 0x100;
+			}
+			ad->step = addr;
+			ad->pertim = (1 << (ADTIMING_BIT * 2)) / addr;
+			break;
+
+		case 0x0b:								// level
+			ad->level = (value * adpcmcfg.vol) >> 4;
+			break;
+
+		case 0x0c:	case 0x0d:					// limit address
+			addr = (LOADINTELWORD(ad->reg.limit) + 1) << 5;
+			ad->limit = addr;
+			break;
+			
+		case 0x0e:								// DAC data
+			ad->status |= 0x04;	// EOS
+			break;
+
+		case 0x10:								// flag
+			if (value & 0x80) {
+				ad->status = 0;
+			}
+			else {
+				ad->mask = ~(value & 0x1f);
+			}
+			break;
+	}
+}
+
+REG8 adpcm_status(ADPCM ad) {
+	
+	REG8 brdy;
+
+	brdy = 8;
+	if (ad->cpustream) {
+		brdy = (ad->cfifo.cpufifocount < (ADPCM_CPUFIFO_SIZE - 16)) ? 8 : 0;
+	}
+	return(((ad->status | brdy) & ad->mask) | ad->play);
+}
+

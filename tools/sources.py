@@ -50,6 +50,13 @@ DROP_EXACT = {
     'bios/bios18.c',           # built through waterbox/port/bios18-reads.c
     'sound/tms3631c.c',        # built through waterbox/port/tms3631-pitch.c
     'cbus/boardlol.c',         # built through waterbox/port/boardlol-fixed.c
+    'sound/opna.c',            # built through waterbox/port/opna-fmgen-caps.c
+    # NP21/W rev105/rev106 fixes, fixed copies in waterbox/port/
+    'i386c/ia32/instructions/fpu/fpemul_softfloat3.cpp',  # fpu-softfloat3-np21w.cpp
+    'sound/adpcmc.c',          # adpcmc-np21w.c
+    'sound/adpcmg.c',          # adpcmg-np21w.c
+    'vram/maketext.c',         # maketext-np21w.c
+    'sound/cs4231c.c',         # cs4231-dma-np21w.c
 }
 # Upstream's CMake build has these and sdl/Makefile.common forgot them; the
 # 118 board's ADPCM needs them. They are NP2kai's own code.
