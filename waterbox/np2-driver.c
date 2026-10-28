@@ -412,9 +412,10 @@ static int join_cue(const char *cue, char *out, size_t outsize)
 	return chimera_vfs_text(out, sheet);
 }
 
+static void attach_cdrom(void);
+
 static void attach_removable(void)
 {
-	char cd[1][MAX_PATH];
 	int i;
 	int n = wbx_slot_count("floppy");
 	g_floppies = (char (*)[MAX_PATH])calloc((size_t)(n > 0 ? n : 1), MAX_PATH);
@@ -423,21 +424,32 @@ static void attach_removable(void)
 		diskdrv_setfdd((REG8)i, g_floppies[i], 0);
 		g_pendingFloppy[i] = g_insertedFloppy[i] = i;
 	}
+	attach_cdrom();
+}
+
+/* the project's CD in the IDE CD-ROM drive; pccore_reset takes it out, and
+ * the Reset input puts it back the same way (the joined sheet is made once:
+ * the file layer keeps it, under the name the first call chose) */
+static char g_cdPath[MAX_PATH];
+
+static void attach_cdrom(void)
+{
 #if defined(SUPPORT_IDEIO)
-	if (slot_names("cdrom", cd, 1)) {
-		char joined[MAX_PATH];
+	int i;
+	if (!g_cdPath[0]) {
+		char cd[1][MAX_PATH], joined[MAX_PATH];
+		if (!slot_names("cdrom", cd, 1)) return;
 		if (join_cue(cd[0], joined, sizeof joined))
 			milstr_ncpy(cd[0], joined, MAX_PATH);
-		for (i = 0; i < 4; i++)
-			if (np2cfg.idetype[i] == SXSIDEV_CDROM) {
-				sxsi_devopen((REG8)i, cd[0]);
-				g_cdUnit = i;
-				break;
-			}
+		milstr_ncpy(g_cdPath, cd[0], MAX_PATH);
 	}
-#else
-	(void)cd;	/* the 286 machine has no CD-ROM drive */
-#endif
+	for (i = 0; i < 4; i++)
+		if (np2cfg.idetype[i] == SXSIDEV_CDROM) {
+			sxsi_devopen((REG8)i, g_cdPath);
+			g_cdUnit = i;
+			break;
+		}
+#endif	/* the 286 machine has no CD-ROM drive */
 }
 
 /* ------------------------------------------------------------ the ABI */
@@ -587,6 +599,17 @@ static void floppy_swap(int drive)
 	diskdrv_setfdd((REG8)drive, g_floppies[disk], 0);
 }
 
+/* The PC's reset switch: the machine starts again, the disks stay in, with
+ * everything written to them (the file layer keeps the writes, so the hard
+ * disks NP2kai opens again read them back). Reboot Core would start from
+ * the project's files instead. */
+static void machine_reset(void)
+{
+	pccore_reset();
+	frame_rate();
+	attach_cdrom();
+}
+
 static void apply_input(void)
 {
 	int i;
@@ -630,6 +653,7 @@ static void apply_input(void)
 		case NP2BTN_FDD2_NEXT: if (rose(i)) floppy_step(1, +1); break;
 		case NP2BTN_FDD1_SWAP: if (rose(i)) floppy_swap(0); break;
 		case NP2BTN_FDD2_SWAP: if (rose(i)) floppy_swap(1); break;
+		case NP2BTN_RESET:     if (rose(i)) machine_reset(); break;
 		}
 	}
 	chimera_mouse_buttons(mleft, mright);

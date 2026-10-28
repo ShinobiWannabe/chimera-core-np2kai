@@ -126,7 +126,8 @@
       "Drive 1 Swap Floppy Disk": "",
       "Drive 2 Previous Floppy Disk": "",
       "Drive 2 Next Floppy Disk": "",
-      "Drive 2 Swap Floppy Disk": ""
+      "Drive 2 Swap Floppy Disk": "",
+      "Reset": ""
     }
   },
   "AllTrollersAutoFire": {

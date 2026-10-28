@@ -22,7 +22,8 @@ enum {
 	NP2BTN_JOY1_UP, NP2BTN_JOY1_DOWN, NP2BTN_JOY1_LEFT, NP2BTN_JOY1_RIGHT,
 	NP2BTN_JOY1_A, NP2BTN_JOY1_B,
 	NP2BTN_FDD1_PREV, NP2BTN_FDD1_NEXT, NP2BTN_FDD1_SWAP,
-	NP2BTN_FDD2_PREV, NP2BTN_FDD2_NEXT, NP2BTN_FDD2_SWAP
+	NP2BTN_FDD2_PREV, NP2BTN_FDD2_NEXT, NP2BTN_FDD2_SWAP,
+	NP2BTN_RESET
 };
 
 typedef struct {
@@ -95,7 +96,8 @@ typedef struct {
 	X("Drive 1 Swap Floppy Disk", "D1Swap", NP2BTN_FDD1_SWAP) \
 	X("Drive 2 Previous Floppy Disk", "D2Prev", NP2BTN_FDD2_PREV) \
 	X("Drive 2 Next Floppy Disk", "D2Next", NP2BTN_FDD2_NEXT) \
-	X("Drive 2 Swap Floppy Disk", "D2Swap", NP2BTN_FDD2_SWAP)
+	X("Drive 2 Swap Floppy Disk", "D2Swap", NP2BTN_FDD2_SWAP) \
+	X("Reset", "Reset", NP2BTN_RESET)
 
 /* The axes: the bus mouse's movement since the last frame. */
 #define NP2_AXIS_MOUSE_X 0

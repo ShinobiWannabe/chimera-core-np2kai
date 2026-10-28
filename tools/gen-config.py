@@ -74,6 +74,7 @@ MNEMONICS = {
     'Drive 1 Swap Floppy Disk': 'v',
     'Drive 2 Previous Floppy Disk': '{', 'Drive 2 Next Floppy Disk': '}',
     'Drive 2 Swap Floppy Disk': 'w',
+    'Reset': 'R',
 }
 
 
