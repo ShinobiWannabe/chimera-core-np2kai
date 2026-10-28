@@ -236,6 +236,25 @@ PY
 	if [ "$(wc -l < "$work/used-ide.ref")" -eq "$frames" ] && ! cmp -s "$work/used-ide.ref" "$work/used-ide.no"; then
 		ok "firmware used: with a hard disk, taking ide.rom away changes the run"
 	else bad "firmware used: ide.rom not found or not used"; fi
+
+	# ---- leg: the real IDE BIOS boots a hard disk --------------------------
+	# The counter as the hard disk's first sector, with ide.rom: the BIOS
+	# must be told the disk is there (0457h, port/bios-ide-units.c) or it
+	# waits 25 s on the absent second unit and boots nothing. Its frame count
+	# (1FC70h) must have started, the same in both builds; the control, the
+	# same disk with an empty first sector, never starts it.
+	hdd_frames() {	# hdd_frames <memory dump> -> the counter's frames
+		python3 -c "import sys; m = open(sys.argv[1], 'rb').read(); print(int.from_bytes(m[0x1fc70:0x1fc72], 'little'))" "$1"
+	}
+	dh=$(folder ide-boot); python3 "$root/tests/gen-testdisk.py" --hdd "$dh/c.nhd"; echo '{"hdd":["c.nhd"]}' > "$dh/slots"
+	compare ide-boot "$dh"
+	"$runwbx" "$wbx" "$dh" "$frames" /dev/null "$work/ide-boot.mem" > /dev/null 2>&1
+	dn=$(folder ide-noboot); python3 "$root/tests/gen-testdisk.py" --hdd --no-boot "$dn/c.nhd"; cp "$dh/slots" "$dn/"
+	"$runwbx" "$wbx" "$dn" "$frames" /dev/null "$work/ide-noboot.mem" > /dev/null 2>&1
+	hb=$(hdd_frames "$work/ide-boot.mem"); hn=$(hdd_frames "$work/ide-noboot.mem")
+	if [ "${hb:-0}" -gt 0 ] && [ "${hn:-1}" -eq 0 ]; then
+		ok "real IDE BIOS: the hard disk boots and its program counts $hb frames; the control with no boot sector counts none"
+	else bad "real IDE BIOS: the hard disk's program counted '$hb' frames, the control '$hn'"; fi
 	dh=$(folder used-ref); python3 "$root/tests/gen-testdisk.py" --rhythm "$dh/rhythm.hdm"
 	echo '{"floppy":["rhythm.hdm"]}' > "$dh/slots"
 	[ -n "$rom" ] && cp "$rom" "$dh/ym2608_adpcm_rom.bin"

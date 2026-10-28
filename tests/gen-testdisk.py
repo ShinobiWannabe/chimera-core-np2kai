@@ -16,8 +16,14 @@ With --rhythm the boot sector plays the 86 board's six drums one by one,
 then all together, then a short beat, half a second apart, and stops: sound
 for the legs that check where the drums come from (setting rhythmSamples).
 
-usage: gen-testdisk.py [--no-write | --counter | --rhythm] <out.hdm>
+With --hdd the counter is instead the first sector of a small hard disk
+(.nhd, 20 cylinders x 8 heads x 17 sectors of 512 bytes): the leg that
+boots a hard disk with the real IDE BIOS looks for its frame count. With
+--hdd --no-boot that sector is left empty, the control that boots nothing.
+
+usage: gen-testdisk.py [--no-write | --counter | --rhythm | --hdd [--no-boot]] <out>
 """
+import struct
 import sys
 
 SECTOR = 1024
@@ -160,9 +166,20 @@ args = sys.argv[1:]
 no_write = "--no-write" in args
 counter = "--counter" in args
 rhythm = "--rhythm" in args
-args = [a for a in args if a not in ("--no-write", "--counter", "--rhythm")]
-if len(args) != 1 or no_write + counter + rhythm > 1:
+hdd = "--hdd" in args
+no_boot = "--no-boot" in args
+args = [a for a in args if a not in ("--no-write", "--counter", "--rhythm", "--hdd", "--no-boot")]
+if len(args) != 1 or no_write + counter + rhythm + hdd > 1 or (no_boot and not hdd):
     sys.exit(__doc__)
+if hdd:
+    # T98-Next's .nhd: its signature, a comment, then the geometry
+    cyl, heads, secs, size = 20, 8, 17, 512
+    head = b"T98HDDIMAGE.R0\0\0" + bytes(0x100) + struct.pack("<IIHHH", 512, cyl, heads, secs, size)
+    image = bytearray(cyl * heads * secs * size)
+    if not no_boot:
+        image[:len(COUNTER)] = COUNTER
+    open(args[0], "wb").write(head + bytes(512 - len(head)) + image)
+    sys.exit(0)
 ipl = bytearray(COUNTER if counter else RHYTHM if rhythm else IPL)
 assert counter or rhythm or ipl[INT_1BH:INT_1BH + 2] == b"\xcd\x1b"
 if no_write:

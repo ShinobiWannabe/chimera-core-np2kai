@@ -38,5 +38,10 @@ for s in $SOURCES; do
   fi
 done
 [ $fail -eq 0 ] || { echo "compile failed; see $out/errors.log"; exit 1; }
+# an object no source makes any more (a file sources.py now drops) would still
+# be linked by the gate's unit tests, which take every object in the folder
+for o in "$obj"/*.o; do
+  case " $objs " in *" $o "*) ;; *) rm -f "$o" ;; esac
+done
 g++ -o "$out/run-native" $objs -lm || { echo "link failed"; exit 1; }
 echo "OK: $out/run-native"

@@ -711,7 +711,11 @@ IDE BIOS waits for ever: it polls the empty IDE unit for its ready bit
 (`D800:09AA`, a delay on port 5Eh, still there after 25000 frames, 7
 minutes), so then NP2kai's own IDE BIOS stands in. Fixing NP2kai's empty
 unit so the real IDE BIOS gives up on it would let `ide.rom` be required
-always; not done. Gate and frontend check take the firmware from
+always; not done. With a hard disk the real IDE BIOS also needs
+BIOS work byte 0457h filled (which units are there, 512-byte sectors),
+which NP2kai leaves 0: `waterbox/port/bios-ide-units.c` fills it (issue
+#27; until fcbd6ba the file was asked for as `ide.rom` but mounted as
+`IDE.ROM`, so the stand-in ran every hard disk). Gate and frontend check take the firmware from
 `NP2_FIRMWARE`; the frontend reference keeps only the memory below C0000h,
 so no ROM is in it. Use the same setting
 names and descriptions as the DOSBox-X core where the meaning is the same
@@ -1510,3 +1514,12 @@ Each entry gives the issue, what happened, and what this core does about it.
   own. New name hints find SNDBIOS.ROM, IDEBIOS.ROM and bios9821.rom; FONT.BMP's
   hint is font.bmp, so it never takes a FONT.ROM. The 36 known alternative
   dumps from the owner's folders are in docs/firmware-dumps.md.
+- 2026-10-28: the real IDE BIOS boots hard disks (issue #27). It reads BIOS
+  work byte 0457h (unit 0 type bits 3-5, unit 1 bits 0-2, 7 = none; bits 7
+  and 6 = 512-byte sectors), which NP2kai leaves 0 but for WINNTFIX with one
+  disk, so it waited 25 s a try on the absent slave and read the master as
+  256-byte sectors. waterbox/port/bios-ide-units.c compiles bios/bios.c with
+  its cbuspnp_bios_update() call also filling the byte, only while the real
+  IDE BIOS is in use. New gate leg: a generated hard disk boots with it.
+  Burning Dragon Plus's own HDI boot code is refused by the real BIOS (error
+  40h, as real hardware would by its code); boot that game from MS-DOS.
