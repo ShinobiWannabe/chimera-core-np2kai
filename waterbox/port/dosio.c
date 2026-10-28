@@ -114,6 +114,50 @@ static VNODE *node_new(const char *path)
 	return n;
 }
 
+/* The overlay's blocks come from slabs of 64 (256 KiB). musl serves an
+ * allocation that big from the mmap arena (1024 MiB in waterbox.config's
+ * memoryLayoutMiB) rather than the 256 MiB heap the rest of the machine
+ * lives in, so a hard disk can take far more writes. A block a truncate
+ * frees goes on a list for the next write. When no slab can be had, the
+ * write comes up short, which NP2kai's disk code reports to the machine as
+ * a write error, and the log says why once. */
+#define SLAB_BLOCKS 64
+static UINT8 *s_slab;	/* the slab being cut, and how many blocks are left in it */
+static UINT s_slabLeft;
+static UINT8 **s_freeBlocks;
+static UINT64 s_freeCount, s_freeRoom;
+static int s_toldFull;
+
+static UINT8 *block_new(void)
+{
+	if (s_freeCount) return s_freeBlocks[--s_freeCount];
+	if (!s_slabLeft) {
+		s_slab = (UINT8 *)malloc((size_t)SLAB_BLOCKS * BLOCK_BYTES);
+		if (!s_slab) {
+			if (!s_toldFull) {
+				s_toldFull = 1;
+				fprintf(stderr, "np2kai: no memory left for what the machine writes to its disks; further writes fail\n");
+			}
+			return NULL;
+		}
+		s_slabLeft = SLAB_BLOCKS;
+	}
+	s_slabLeft--;
+	return s_slab + (size_t)s_slabLeft * BLOCK_BYTES;
+}
+
+static void block_free(UINT8 *b)
+{
+	if (s_freeCount == s_freeRoom) {
+		UINT64 room = s_freeRoom ? s_freeRoom * 2 : 256;
+		UINT8 **f = (UINT8 **)realloc(s_freeBlocks, (size_t)room * sizeof *f);
+		if (!f) return;	/* the block is lost, not used twice */
+		s_freeBlocks = f;
+		s_freeRoom = room;
+	}
+	s_freeBlocks[s_freeCount++] = b;
+}
+
 static int node_reserve(VNODE *n, UINT64 size)
 {
 	UINT64 want = (size + BLOCK_BYTES - 1) >> BLOCK_SHIFT;
@@ -186,7 +230,7 @@ static UINT node_write(VNODE *n, UINT64 off, const UINT8 *src, UINT len)
 		UINT chunk = BLOCK_BYTES - bo;
 		if (chunk > len - done) chunk = len - done;
 		if (!n->blocks[bi]) {
-			UINT8 *b = (UINT8 *)malloc(BLOCK_BYTES);
+			UINT8 *b = block_new();
 			if (!b) break;
 			seed_read(n, bi << BLOCK_SHIFT, b, BLOCK_BYTES);
 			n->blocks[bi] = b;
@@ -204,7 +248,7 @@ static void node_truncate(VNODE *n, UINT64 size)
 {
 	UINT64 keep = (size + BLOCK_BYTES - 1) >> BLOCK_SHIFT, i;
 	for (i = keep; i < n->nblocks; i++) {
-		if (n->blocks[i]) { free(n->blocks[i]); n->blocks[i] = NULL; n->held--; }
+		if (n->blocks[i]) { block_free(n->blocks[i]); n->blocks[i] = NULL; n->held--; }
 	}
 	/* the bytes past the new end of a kept last block read as zero later */
 	if (size < n->size && keep && keep - 1 < n->nblocks && n->blocks[keep - 1]) {

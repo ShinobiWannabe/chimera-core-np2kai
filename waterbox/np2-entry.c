@@ -17,6 +17,9 @@
 #define X(ret, name, params, args) ret np21_##name params; ret np2_##name params;
 NP2_EXPORTS(X)
 #undef X
+#define X(name, params, args) void np21_##name params; void np2_##name params;
+NP2_EXPORTS_BOTH(X)
+#undef X
 int np21_Init(void);
 int np2_Init(void);
 
@@ -36,4 +39,12 @@ ECL_EXPORT int Init(void)
 #define X(ret, name, params, args) \
 	ECL_EXPORT ret name params { return g_half ? np2_##name args : np21_##name args; }
 NP2_EXPORTS(X)
+#undef X
+
+/* What Chimera hands the core before Init, when the half is not chosen yet
+ * (its engine sets the input-poll callback first, session.cpp): both halves
+ * take it, so the half Init picks has it. */
+#define X(name, params, args) \
+	ECL_EXPORT void name params { np21_##name args; np2_##name args; }
+NP2_EXPORTS_BOTH(X)
 #undef X

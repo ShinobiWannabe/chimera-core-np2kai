@@ -28,6 +28,10 @@ void chimera_set_start_time(int64_t seconds);
 /* np2-driver.c: emulated milliseconds since power-on (GETTICK). */
 unsigned int chimera_gettick(void);
 
+/* np2-driver.c: the same time, whole seconds and the milliseconds past them,
+ * without GETTICK's 49.7-day wrap; the calendar reads it. */
+void chimera_uptime(int64_t *seconds, unsigned int *ms);
+
 /* mousemng.c: motion and buttons for the next frame. */
 void chimera_mouse_move(int dx, int dy);
 void chimera_mouse_buttons(int left, int right);

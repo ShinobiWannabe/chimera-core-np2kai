@@ -11,7 +11,6 @@
  */
 #define NP2_EXPORTS(X) \
 	X(const char *, GetLoadError, (void), ()) \
-	X(void, SetInputPollCallback, (uint64_t fn), (fn)) \
 	X(void, SetButton, (int32_t index, int32_t state), (index, state)) \
 	X(void, SetAxis, (int32_t index, int32_t value), (index, value)) \
 	X(void, FrameAdvance, (uint64_t packed), (packed)) \
@@ -28,6 +27,7 @@
 	X(uint8_t *, GetMemoryDomainPtr, (int i), (i)) \
 	X(int64_t, GetMemoryDomainSize, (int i), (i)) \
 	X(int, GetMemoryDomainWritable, (int i), (i)) \
+	X(int32_t, GetMemoryDomainHidden, (int32_t i), (i)) \
 	X(int32_t, GetSaveDataFileCount, (void), ()) \
 	X(const char *, GetSaveDataFileName, (int32_t index), (index)) \
 	X(int64_t, GetSaveDataFileSize, (int32_t index), (index)) \
@@ -38,7 +38,6 @@
 	X(uint64_t, GetAudioDigest, (void), ()) \
 	X(uint64_t, GetEmulatedClocks, (void), ()) \
 	X(uint64_t, GetFrameCount, (void), ()) \
-	X(void, SetRenderingEnabled, (int32_t on), (on)) \
 	X(int32_t, GetDriveCount, (void), ()) \
 	X(const char *, GetDriveName, (int32_t i), (i)) \
 	X(int32_t, GetDriveLight, (int32_t i), (i)) \
@@ -51,3 +50,10 @@
 	X(int32_t, GetRegisterBits, (int32_t i), (i)) \
 	X(int64_t, GetRegisterValue, (int32_t i), (i))
 /* Init is not in the table: the entry's own Init picks the half first. */
+
+/* The calls Chimera may make before Init, when no half is chosen yet: the
+ * entry gives them to both halves. X(name, (parameters), (arguments)), each
+ * returning nothing. */
+#define NP2_EXPORTS_BOTH(X) \
+	X(SetInputPollCallback, (uint64_t fn), (fn)) \
+	X(SetRenderingEnabled, (int32_t on), (on))

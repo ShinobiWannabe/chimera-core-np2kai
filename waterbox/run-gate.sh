@@ -282,6 +282,81 @@ PY
 		*) bad "286 savestate: '$s', control '$c'" ;;
 	esac
 
+	# ---- leg: the input-poll callback on both machines ----------------------
+	# Chimera's engine gives SetInputPollCallback before Init (session.cpp),
+	# when the entry has not picked a half yet; run-wbx does the same with
+	# NP2_POLLS. The counter disk asks INT 18h for a key every frame once it
+	# has booted, so the callback runs on either machine.
+	dp=$(folder polls); python3 "$root/tests/gen-testdisk.py" --counter "$dp/c.hdm"; echo '{"floppy":["c.hdm"]}' > "$dp/slots"
+	p21=$(NP2_POLLS=1 "$runwbx" "$wbx" "$dp" 600 2>/dev/null | sed -n 's/^POLLS //p')
+	to286 "$dp"
+	p286=$(NP2_POLLS=1 "$runwbx" "$wbx" "$dp" 600 2>/dev/null | sed -n 's/^POLLS //p')
+	if [ "${p21:-0}" -gt 0 ] && [ "${p286:-0}" -gt 0 ]; then ok "input polls: the callback given before Init runs on both machines ($p21 and $p286 calls)"
+	else bad "input polls: PC9821 '$p21', PC98 '$p286' calls"; fi
+
+	# ---- leg: SHIFT and Right SHIFT are one key while the machine merges them
+	# The BIOS's shift state (0000:053Ah bit 0) at frame 250: SHIFT held from
+	# 100 to 300 with Right SHIFT tapped from 150 to 200 is still shifted;
+	# the control, SHIFT let go at 200, is not.
+	ds=$(folder shift); cp "$dp/c.hdm" "$dp/slots" "$ds/"
+	shift_bit() {	# shift_bit <press script> <settings> -> 0 or 1
+		printf '%s' "$2" > "$ds/settings"
+		NP2_PRESS=$1 "$runwbx" "$wbx" "$ds" 250 /dev/null "$work/shift.mem" > /dev/null 2>&1
+		python3 -c "import sys; print(open(sys.argv[1], 'rb').read()[0x53a] & 1)" "$work/shift.mem"
+	}
+	for m in PC9821 PC98; do
+		a=$(shift_bit "100:Key SHIFT:200,150:Key Right SHIFT:50" "{\"machine\":\"$m\"}")
+		c=$(shift_bit "100:Key SHIFT:100,150:Key Right SHIFT:50" "{\"machine\":\"$m\"}")
+		if [ "$a" = 1 ] && [ "$c" = 0 ]; then ok "shift, $m: letting go of Right SHIFT leaves SHIFT held; the control is let go"
+		else bad "shift, $m: held '$a', control '$c'"; fi
+	done
+
+	# ---- leg: one floppy is never in both drives, and an empty domain hides --
+	# Three floppies: drive 1 holds 0, drive 2 holds 1. Selecting disk 1 for
+	# drive 1 and pressing Swap leaves drive 1 as it was; selecting disk 2
+	# puts it in. With no extended memory its domain is hidden from the tools.
+	df=$(folder floppies); cp "$dp/c.hdm" "$df/a.hdm"; cp "$dp/c.hdm" "$df/b.hdm"; cp "$dp/c.hdm" "$df/c.hdm"
+	echo '{"floppy":["a.hdm","b.hdm","c.hdm"]}' > "$df/slots"; echo '{"extraMemoryMB":0}' > "$df/settings"
+	m1=$(NP2_MEDIA=1 NP2_PRESS="100:Drive 1 Next Floppy Disk:4,120:Drive 1 Swap Floppy Disk:4" "$runwbx" "$wbx" "$df" 200 2>/dev/null | grep '^MEDIA')
+	m2=$(NP2_MEDIA=1 NP2_PRESS="100:Drive 1 Next Floppy Disk:4,110:Drive 1 Next Floppy Disk:4,120:Drive 1 Swap Floppy Disk:4" "$runwbx" "$wbx" "$df" 200 2>/dev/null | grep '^MEDIA\|^HIDDEN' | tr '\n' ' ')
+	if [ "$m1" = "MEDIA 0 1" ] && [ "$m2" = "MEDIA 2 1 HIDDEN 0 1 0 0 0 0 0 0 " ]; then
+		ok "floppies: Swap will not put drive 2's disk in drive 1, and puts another in; with 0 MB the extended memory domain is hidden"
+	else bad "floppies: '$m1' then '$m2'"; fi
+
+	# ---- leg: no limit on floppies ---------------------------------------
+	# Eighteen floppies: Previous from the first goes round to the last.
+	dm=$(folder many-floppies); list=
+	for i in $(seq 0 17); do cp "$dp/c.hdm" "$dm/d$i.hdm"; list="$list\"d$i.hdm\","; done
+	echo "{\"floppy\":[${list%,}]}" > "$dm/slots"
+	m3=$(NP2_MEDIA=1 NP2_PRESS="100:Drive 1 Previous Floppy Disk:4,120:Drive 1 Swap Floppy Disk:4" "$runwbx" "$wbx" "$dm" 200 2>/dev/null | grep '^MEDIA')
+	if [ "$m3" = "MEDIA 17 1" ]; then ok "floppies: all 18 of 18 can be put in"
+	else bad "floppies: 18 disks gave '$m3'"; fi
+
+	# ---- leg: cue sheets written the ways real ones are --------------------
+	# tests/cue-join.c runs the driver's joiner on sheets with a byte order
+	# mark, bare names, CRLF, small letters, FLAGS/POSTGAP and a Windows
+	# folder; each must join as the plain sheet does, and a WAVE file or a
+	# 2048-byte track must be left to NP2kai.
+	unit_test() {	# unit_test <name> -> builds tests/<name>.c with the driver in $work/<name>
+		mkdir -p "$work/$1"
+		( NP2=$root/extern/NP2kai; PORT=$here/port; FLAVOUR=np21; . "$here/np2-flags.sh"
+		  mb=${MINIBOX_DIR:-$root/../chimera/extern/chimera-common-minibox}
+		  gcc -O1 -fno-strict-aliasing $NP2_DEFINES $NP2_INCLUDES -I"$mb/extern/emulibc" -I"$mb/source/guest/include" -I"$mb/extern/jsmn" \
+		    $NP2_CFLAGS -w -c "$root/tests/$1.c" -o "$work/$1/$1.o" &&
+		  g++ -o "$work/$1/$1" "$work/$1/$1.o" $(ls "$root"/build/native-np21/obj/*.o | grep -v '_np2-driver\.o$\|_run-native\.o$') -lm
+		) > "$work/$1/build.log" 2>&1
+		(cd "$work/$1" && "./$1" > out.txt 2>&1)
+	}
+	if unit_test cue-join; then ok "cue sheets: $(tail -1 "$work/cue-join/out.txt")"
+	else bad "cue sheets: $(tail -3 "$work/cue-join/out.txt" "$work/cue-join/build.log" 2>/dev/null)"; fi
+
+	# ---- leg: the calendar past 49.7 days ----------------------------------
+	# tests/calendar.c sets the driver's clock total to 50 and 5000 days of
+	# running; the calendar must read the start date plus that, not wrap as
+	# GETTICK's 32-bit milliseconds do.
+	if unit_test calendar; then ok "calendar: $(tail -1 "$work/calendar/out.txt")"
+	else bad "calendar: $(tail -3 "$work/calendar/out.txt" "$work/calendar/build.log" 2>/dev/null)"; fi
+
 	# ---- leg: the user's games, local only ----------------------------------
 	if [ -n "${NP2_GAMES:-}" ] && [ -d "${NP2_GAMES:-}" ]; then
 		for g in "$NP2_GAMES"/*/; do

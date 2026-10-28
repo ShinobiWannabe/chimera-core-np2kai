@@ -11,6 +11,7 @@
  * the "settings" and "slots" files of the folder they run in.
  */
 #include <compiler.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +50,9 @@
 
 static char g_loadError[512];
 static uint32_t *g_frame;
-static int g_render = 1;
+/* turbo (SetRenderingEnabled) is the frontend's choice, not the machine's:
+ * invisible, so a state taken in turbo does not bring it back */
+static ECL_INVISIBLE int g_render = 1;
 static void list_drives(void);
 /* the drives NP2kai read or wrote this frame, and last frame's, which the
  * lights show ([0] the floppy units, [1] the SASI/IDE units) */
@@ -84,6 +87,12 @@ unsigned int chimera_gettick(void)
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	return (unsigned int)(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 }
+void chimera_uptime(int64_t *seconds, unsigned int *ms)
+{
+	unsigned int t = chimera_gettick();
+	*seconds = t / 1000;
+	*ms = t % 1000;
+}
 #else
 uint64_t np2drv_clocks(void);
 unsigned int chimera_gettick(void)
@@ -91,6 +100,19 @@ unsigned int chimera_gettick(void)
 	np2drv_clocks();
 	if (!pccore.realclock) return 0;
 	return (unsigned int)(g_clocks * 1000u / pccore.realclock);
+}
+
+/* The same time for the calendar, whole: GETTICK's 32 bits wrap after 49.7
+ * days, which is fine for the timers (they take differences) but would set
+ * the calendar back. The 64-bit count lasts thousands of years. */
+void chimera_uptime(int64_t *seconds, unsigned int *ms)
+{
+	np2drv_clocks();
+	*seconds = 0;
+	*ms = 0;
+	if (!pccore.realclock) return;
+	*seconds = (int64_t)(g_clocks / pccore.realclock);
+	*ms = (unsigned int)(g_clocks % pccore.realclock * 1000u / pccore.realclock);
 }
 #endif
 
@@ -207,7 +229,6 @@ static void frame_rate(void)
  * its own name, listed in swap order. Hard disks have to be named in np2cfg
  * before pccore_init; floppies and the CD go in after the reset, as
  * np2_main does it. */
-#define SLOT_MAX 16
 
 /* A disk opened with no project (Chimera's --core=<package> <file>, or a
  * file opened from the File menu) comes with no "slots" file: the engine
@@ -278,8 +299,10 @@ static void attach_hard_disks(void)
 	}
 }
 
-static char g_floppies[SLOT_MAX][MAX_PATH];
-static int g_pendingFloppy[2], g_insertedFloppy[2];
+/* every floppy of the project, however many (file_slots.json has no limit) */
+static char (*g_floppies)[MAX_PATH];
+/* the disk each drive's selector is on, and the disk in it (-1: none) */
+static int g_pendingFloppy[2], g_insertedFloppy[2] = { -1, -1 };
 static int g_floppyCount;
 
 /* NP2kai's cue reader takes one FILE line, the first: a cue sheet with a
@@ -287,19 +310,37 @@ static int g_floppyCount;
  * itself) would read every track from the first file. Such a sheet is read
  * as one image instead: its files joined end to end in the file layer, and
  * a sheet of one FILE whose INDEX positions are moved by the sectors of the
- * files before. Only raw 2352-byte tracks are joined; anything else is
- * left to NP2kai as it is. 1 and the joined sheet's path in out, 0 when
- * the sheet is used as it is. */
+ * files before. Only BINARY files of raw 2352-byte tracks are joined;
+ * anything else is left to NP2kai as it is. Each line is split as NP2kai's
+ * own reader splits it (diskimage/cd/cdd_cue.c: milstr_getarg, words in any
+ * case, names with or without quotes), after a UTF-8 byte order mark, which
+ * NP2kai's text reader skips too. The joined sheet keeps the lines NP2kai
+ * reads (TRACK, PREGAP, INDEX); it ignores the rest (FLAGS, POSTGAP, REM).
+ * 1 and the joined sheet's path in out, 0 when the sheet is used as it is. */
 #define CUE_MAX_FILES 99
+
+/* the next line of text from *at, its words in argv; the word count */
+static int cue_line(const char *text, size_t len, size_t *at, char *line, size_t linesize, char *argv[8])
+{
+	size_t e = *at, n;
+	while (e < len && text[e] != '\n') e++;
+	n = e - *at;
+	if (n >= linesize) n = linesize - 1;
+	memcpy(line, text + *at, n);
+	line[n] = '\0';
+	*at = e + 1;
+	return milstr_getarg(line, argv, 8);
+}
+
 static int join_cue(const char *cue, char *out, size_t outsize)
 {
 	static char text[65536], sheet[65536];
 	static char names[CUE_MAX_FILES][MAX_PATH];
 	const char *parts[CUE_MAX_FILES];
 	UINT64 base[CUE_MAX_FILES], sectors = 0;
-	char dir[MAX_PATH], bin[MAX_PATH], line[512];
-	int nfiles = 0, i, ok = 1;
-	size_t len, at = 0, used = 0;
+	char dir[MAX_PATH], bin[MAX_PATH], line[512], *argv[8], *q;
+	int nfiles = 0, i, argc, ok = 1;
+	size_t len, start = 0, at, used = 0;
 	FILEH fh;
 	const char *ext = file_getext(cue);
 	if (milstr_cmp(ext, "cue")) return 0;
@@ -308,27 +349,24 @@ static int join_cue(const char *cue, char *out, size_t outsize)
 	len = file_read(fh, text, sizeof text - 1);
 	file_close(fh);
 	text[len] = '\0';
+	if (len >= 3 && !memcmp(text, "\xef\xbb\xbf", 3)) start = 3;
 	milstr_ncpy(dir, cue, sizeof dir);
 	file_cutname(dir);
 	/* the files, and the sector each starts at */
-	while (at < len) {
-		size_t e = at, n;
-		char *p, *q;
-		while (e < len && text[e] != '\n') e++;
-		n = e - at; if (n >= sizeof line) n = sizeof line - 1;
-		memcpy(line, text + at, n); line[n] = '\0';
-		at = e + 1;
-		for (p = line; *p == ' ' || *p == '\t'; p++) {}
-		if (!milstr_memcmp(p, "FILE ") && (q = strchr(p, '"')) != NULL) {
-			char *r = strchr(q + 1, '"');
-			if (!r || nfiles >= CUE_MAX_FILES) return 0;
-			*r = '\0';
+	for (at = start; at < len; ) {
+		argc = cue_line(text, len, &at, line, sizeof line, argv);
+		if (argc >= 3 && !milstr_cmp(argv[0], "FILE")) {
+			/* WAVE, MOTOROLA, AIFF, MP3: not raw sectors */
+			if (milstr_cmp(argv[argc - 1], "BINARY") || nfiles >= CUE_MAX_FILES) return 0;
+			/* a name written with Windows' separator */
+			for (q = argv[1]; *q; q++) if (*q == '\\') *q = '/';
 			milstr_ncpy(names[nfiles], dir, MAX_PATH);
-			file_catname(names[nfiles], q + 1, MAX_PATH);
+			file_catname(names[nfiles], argv[1], MAX_PATH);
 			nfiles++;
 		}
-		else if (!milstr_memcmp(p, "TRACK ")) {
-			if (!strstr(p, "AUDIO") && !strstr(p, "/2352")) ok = 0;
+		else if (argc >= 3 && !milstr_cmp(argv[0], "TRACK")) {
+			size_t m = strlen(argv[2]);
+			if (milstr_cmp(argv[2], "AUDIO") && (m < 5 || strcmp(argv[2] + m - 5, "/2352"))) ok = 0;
 		}
 	}
 	if (nfiles < 2 || !ok) return 0;
@@ -349,25 +387,22 @@ static int join_cue(const char *cue, char *out, size_t outsize)
 	file_cutext(bin);
 	milstr_ncat(bin, ".joined.bin", sizeof bin);
 	used = (size_t)snprintf(sheet, sizeof sheet, "FILE \"%s\" BINARY\n", file_getname(bin));
-	at = 0; i = -1;
-	while (at < len && used < sizeof sheet - 64) {
-		size_t e = at, n;
-		char *p;
+	i = -1;
+	for (at = start; at < len && used < sizeof sheet - 64; ) {
 		unsigned m, sec, f;
-		int idx;
-		while (e < len && text[e] != '\n') e++;
-		n = e - at; if (n >= sizeof line) n = sizeof line - 1;
-		memcpy(line, text + at, n); line[n] = '\0';
-		at = e + 1;
-		while (n && (line[n - 1] == '\r' || line[n - 1] == ' ')) line[--n] = '\0';
-		for (p = line; *p == ' ' || *p == '\t'; p++) {}
-		if (!milstr_memcmp(p, "FILE ")) i++;
-		else if (!milstr_memcmp(p, "TRACK ") || !milstr_memcmp(p, "PREGAP "))
-			used += (size_t)snprintf(sheet + used, sizeof sheet - used, "%s\n", p);
-		else if (sscanf(p, "INDEX %d %u:%u:%u", &idx, &m, &sec, &f) == 4 && i >= 0) {
+		argc = cue_line(text, len, &at, line, sizeof line, argv);
+		if (argc >= 3 && !milstr_cmp(argv[0], "FILE")) i++;
+		else if (argc >= 3 && !milstr_cmp(argv[0], "TRACK")) {
+			for (q = argv[2]; *q; q++) *q = (char)toupper((unsigned char)*q);	/* "mode1/2352" */
+			used += (size_t)snprintf(sheet + used, sizeof sheet - used, "TRACK %s %s\n", argv[1], argv[2]);
+		}
+		else if (argc >= 2 && !milstr_cmp(argv[0], "PREGAP"))
+			used += (size_t)snprintf(sheet + used, sizeof sheet - used, "PREGAP %s\n", argv[1]);
+		else if (argc >= 3 && !milstr_cmp(argv[0], "INDEX") && i >= 0 && i < nfiles &&
+		         sscanf(argv[2], "%u:%u:%u", &m, &sec, &f) == 3) {
 			UINT64 pos = base[i] + ((UINT64)m * 60 + sec) * 75 + f;
 			used += (size_t)snprintf(sheet + used, sizeof sheet - used, "INDEX %02d %02u:%02u:%02u\n",
-				idx, (unsigned)(pos / 4500), (unsigned)(pos / 75 % 60), (unsigned)(pos % 75));
+				(int)milstr_solveINT(argv[1]), (unsigned)(pos / 4500), (unsigned)(pos / 75 % 60), (unsigned)(pos % 75));
 		}
 	}
 	if (!chimera_vfs_join(bin, parts, nfiles)) return 0;
@@ -381,7 +416,9 @@ static void attach_removable(void)
 {
 	char cd[1][MAX_PATH];
 	int i;
-	g_floppyCount = slot_names("floppy", g_floppies, SLOT_MAX);
+	int n = wbx_slot_count("floppy");
+	g_floppies = (char (*)[MAX_PATH])calloc((size_t)(n > 0 ? n : 1), MAX_PATH);
+	g_floppyCount = g_floppies ? slot_names("floppy", g_floppies, n > 0 ? n : 1) : 0;
 	for (i = 0; i < g_floppyCount && i < 2; i++) {
 		diskdrv_setfdd((REG8)i, g_floppies[i], 0);
 		g_pendingFloppy[i] = g_insertedFloppy[i] = i;
@@ -501,10 +538,53 @@ ECL_EXPORT void SetAxis(int32_t index, int32_t value)
 
 static int rose(int i) { return g_level[i] && !g_last[i]; }
 
+/* SHIFT (0x70) and Right SHIFT (0x7d). NP2kai sends Right SHIFT as SHIFT
+ * unless the machine asked the PC-9801-119 keyboard to tell them apart
+ * (keystat.c, keyctrl.kbdtype 2 or more), and lets either key's release
+ * end the one SHIFT. So while they are one key, they are sent as one: down
+ * when the first goes down, up when the last comes up. */
+#define KEY_SHIFT 0x70
+#define KEY_RSHIFT 0x7d
+
+static int shifts_merged(void)
+{
+#if defined(SUPPORT_PC9801_119)
+	return keyctrl.kbdtype < 2;
+#else
+	return 1;
+#endif
+}
+
+static void shift_levels(int *now, int *last)
+{
+	int i;
+	*now = *last = 0;
+	for (i = 0; i < BUTTON_COUNT; i++)
+		if (k_buttons[i] == KEY_SHIFT || k_buttons[i] == KEY_RSHIFT) {
+			*now |= g_level[i];
+			*last |= g_last[i];
+		}
+}
+
+/* A drive is in use when the project has a disk for it: drive 2 needs a
+ * second floppy (list_drives offers it only then). */
+static int floppy_drive_used(int drive) { return drive < g_floppyCount; }
+
 static void floppy_step(int drive, int delta)
 {
-	if (g_floppyCount <= 0) return;
+	if (!floppy_drive_used(drive)) return;
 	g_pendingFloppy[drive] = (g_pendingFloppy[drive] + delta + g_floppyCount) % g_floppyCount;
+}
+
+/* Swap puts the selected disk in, unless it is in the other drive: one
+ * image in two drives would be two NP2kai drives, each with its own track
+ * cache, writing one disk. */
+static void floppy_swap(int drive)
+{
+	int disk = g_pendingFloppy[drive];
+	if (!floppy_drive_used(drive) || disk == g_insertedFloppy[1 - drive]) return;
+	g_insertedFloppy[drive] = disk;
+	diskdrv_setfdd((REG8)drive, g_floppies[disk], 0);
 }
 
 static void apply_input(void)
@@ -516,6 +596,15 @@ static void apply_input(void)
 	for (i = 0; i < BUTTON_COUNT; i++) {
 		int what = k_buttons[i];
 		if (what < 0x80) {
+			if ((what == KEY_SHIFT || what == KEY_RSHIFT) && shifts_merged()) {
+				int now, last;
+				shift_levels(&now, &last);
+				if (what == KEY_SHIFT && now != last) {
+					if (now) keystat_keydown(KEY_SHIFT);
+					else keystat_keyup(KEY_SHIFT);
+				}
+				continue;
+			}
 			if (g_level[i] != g_last[i]) {
 				if (g_level[i]) keystat_keydown((REG8)what);
 				else keystat_keyup((REG8)what);
@@ -539,14 +628,8 @@ static void apply_input(void)
 		case NP2BTN_FDD1_NEXT: if (rose(i)) floppy_step(0, +1); break;
 		case NP2BTN_FDD2_PREV: if (rose(i)) floppy_step(1, -1); break;
 		case NP2BTN_FDD2_NEXT: if (rose(i)) floppy_step(1, +1); break;
-		case NP2BTN_FDD1_SWAP:
-		case NP2BTN_FDD2_SWAP:
-			if (rose(i) && g_floppyCount > 0) {
-				int d = (what == NP2BTN_FDD1_SWAP) ? 0 : 1;
-				g_insertedFloppy[d] = g_pendingFloppy[d];
-				diskdrv_setfdd((REG8)d, g_floppies[g_insertedFloppy[d]], 0);
-			}
-			break;
+		case NP2BTN_FDD1_SWAP: if (rose(i)) floppy_swap(0); break;
+		case NP2BTN_FDD2_SWAP: if (rose(i)) floppy_swap(1); break;
 		}
 	}
 	chimera_mouse_buttons(mleft, mright);
@@ -648,6 +731,14 @@ ECL_EXPORT int64_t GetMemoryDomainSize(int i)
 
 ECL_EXPORT int GetMemoryDomainWritable(int i) { return i >= 0 && i < DOMAIN_COUNT; }
 
+/* With no extended memory (Extended Memory 0 MB) its domain has no bytes:
+ * kept in the list, so every domain keeps its number, but left out of the
+ * memory tools. */
+ECL_EXPORT int32_t GetMemoryDomainHidden(int32_t i)
+{
+	return GetMemoryDomainSize(i) == 0;
+}
+
 /* ------------------------------------------------------------ drives
  *
  * One entry for each medium the project put in the machine: the floppy
@@ -655,8 +746,8 @@ ECL_EXPORT int GetMemoryDomainWritable(int i) { return i >= 0 && i < DOMAIN_COUN
  * for a frame in which the machine read or wrote that drive: NP2kai's own
  * access notices (port/sysmng.h) mark it during the frame, and the frame's
  * end latches it. The floppy drives also say what they hold: every floppy
- * of the project can go into either, Previous and Next move the selector
- * and Swap puts the selected one in (apply_input). All of it is guest
+ * of the project can go into either (not into both at once), Previous and
+ * Next move the selector and Swap puts the selected one in (apply_input). All of it is guest
  * memory, so a rewind takes it back. */
 enum { DRIVE_FDD, DRIVE_SXSI };
 #define DRIVE_MAX 8

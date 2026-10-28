@@ -79,9 +79,12 @@ void chimera_set_start_time(INT64 seconds) { s_start = seconds; }
 
 BRESULT timemng_gettime(_SYSTIME *st)
 {
-	UINT32 ms = chimera_gettick();
-	time_t t = (time_t)(s_start + ms / 1000);
+	int64_t secs;
+	unsigned int ms;
+	time_t t;
 	struct tm tm;
+	chimera_uptime(&secs, &ms);
+	t = (time_t)(s_start + secs);
 	if (!gmtime_r(&t, &tm)) return FAILURE;
 	st->year = (UINT16)(tm.tm_year + 1900);
 	st->month = (UINT16)(tm.tm_mon + 1);

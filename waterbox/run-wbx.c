@@ -74,6 +74,16 @@ typedef void     (MB_GUEST_ABI *set1fn)(int32_t);
 typedef int32_t  (MB_GUEST_ABI *i32ifn)(int32_t);
 typedef int64_t  (MB_GUEST_ABI *i64i32fn)(int32_t);
 
+/* NP2_POLLS: the engine's input-poll callback, given before Init as
+ * Chimera's engine gives it (session.cpp), counting the core's calls */
+static long g_polls;
+static uintptr_t MB_GUEST_ABI count_poll(uintptr_t a, uintptr_t b, uintptr_t c, uintptr_t d, uintptr_t e, uintptr_t f)
+{
+	(void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+	g_polls++;
+	return 0;
+}
+
 static uintptr_t proc(mb_host *h, const char *name)
 {
 	mb_return r;
@@ -154,6 +164,10 @@ int main(int argc, char **argv)
 	closedir(d);
 
 	wbx_activate_host(h, &r); die(&r, "activate");
+	if (getenv("NP2_POLLS")) {
+		wbx_get_callback_addr(h, count_poll, 3, &r); die(&r, "callback");
+		((void (MB_GUEST_ABI *)(uint64_t))proc(h, "SetInputPollCallback"))((uint64_t)r.data);
+	}
 	if (!((intfn)proc(h, "Init"))()) {
 		char why[256];
 		const char *msg = ((strfn)proc(h, "GetLoadError"))();
@@ -230,6 +244,19 @@ int main(int argc, char **argv)
 			int k;
 			printf("REGS");
 			for (k = 0; k < RegCount(); k++) printf(" %s=%llx", RegName(k), (unsigned long long)RegValue(k));
+			printf("\n");
+		}
+		if (getenv("NP2_POLLS")) printf("POLLS %ld\n", g_polls);
+		if (getenv("NP2_MEDIA")) {
+			/* what each floppy drive holds, and the domains the tools hide */
+			i32ifn Inserted = (i32ifn)proc(h, "GetDriveMediaInserted");
+			intfn DomCount = (intfn)proc(h, "GetMemoryDomainCount");
+			i32ifn Hidden = (i32ifn)proc(h, "GetMemoryDomainHidden");
+			int k;
+			printf("MEDIA");
+			for (k = 0; k < DriveCount(); k++) printf(" %d", Inserted(k));
+			printf("\nHIDDEN");
+			for (k = 0; k < DomCount(); k++) printf(" %d", Hidden(k));
 			printf("\n");
 		}
 		wall = now_s() - t0;

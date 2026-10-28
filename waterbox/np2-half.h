@@ -23,6 +23,7 @@
 #define GetMemoryDomainPtr NP2_PASTE(NP2_HALF, GetMemoryDomainPtr)
 #define GetMemoryDomainSize NP2_PASTE(NP2_HALF, GetMemoryDomainSize)
 #define GetMemoryDomainWritable NP2_PASTE(NP2_HALF, GetMemoryDomainWritable)
+#define GetMemoryDomainHidden NP2_PASTE(NP2_HALF, GetMemoryDomainHidden)
 #define GetSaveDataFileCount NP2_PASTE(NP2_HALF, GetSaveDataFileCount)
 #define GetSaveDataFileName NP2_PASTE(NP2_HALF, GetSaveDataFileName)
 #define GetSaveDataFileSize NP2_PASTE(NP2_HALF, GetSaveDataFileSize)
