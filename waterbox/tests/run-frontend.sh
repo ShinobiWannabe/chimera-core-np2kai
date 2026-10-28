@@ -42,7 +42,7 @@
 # Usage: run-frontend.sh [--chimera-root <path>] [--frames N] [--make-reference]
 # Environment:
 #   NP2_FIRMWARE    a folder holding the required firmware, the user's own,
-#                   never committed: FONT.ROM, BIOS.ROM, ITF.ROM, SOUND.ROM,
+#                   never committed: FONT.ROM, BIOS.ROM, SOUND.ROM,
 #                   IDE.ROM (or IDEBIOS.ROM) and the six 2608_*.WAV, any case
 #   NP2_FONT        FONT.ROM to use instead of the folder's (optional)
 #   NP2_REFERENCE   the reference folder (default build/frontend-ref)
@@ -82,7 +82,7 @@ done
 
 # the required firmware (waterbox.config "firmware"), each under its id;
 # IDE.ROM is only needed with a hard disk, and is given to every run
-FIRMWARE_IDS="bios.rom itf.rom sound.rom ide.rom 2608_BD.WAV 2608_SD.WAV 2608_TOP.WAV 2608_HH.WAV 2608_TOM.WAV 2608_RIM.WAV"
+FIRMWARE_IDS="bios.rom sound.rom ide.rom 2608_bd.wav 2608_sd.wav 2608_top.wav 2608_hh.wav 2608_tom.wav 2608_rim.wav"
 fw_file() {	# fw_file <id>: the file in NP2_FIRMWARE, any case (IDE.ROM may be IDEBIOS.ROM)
 	local n f
 	for n in "$1" $( [ "$1" = ide.rom ] && echo idebios.rom ); do
@@ -98,7 +98,7 @@ for id in $FIRMWARE_IDS; do
 done
 fw_copy() {	# fw_copy <dir>: the firmware into a native run's folder
 	local id
-	cp "$font" "$1/FONT.ROM"
+	cp "$font" "$1/font.rom"
 	for id in $FIRMWARE_IDS; do cp "$(fw_file "$id")" "$1/$id"; done
 }
 ref=${NP2_REFERENCE:-$root/build/frontend-ref}
@@ -238,7 +238,7 @@ PY
 # pressed (chimera-run's own advice for a fixed-length idle run).
 printf '[Input]\n[/Input]\n' > "$work/empty.txt"
 FONTW=$(native_path "$font")
-FWARGS=(--firmware "FONT.ROM=$FONTW")
+FWARGS=(--firmware "font.rom=$FONTW")
 for id in $FIRMWARE_IDS; do FWARGS+=(--firmware "$id=$(native_path "$(fw_file "$id")")"); done
 engine() {	# engine <tag> <disk> [chimera-run flags...]
 	local tag=$1 disk=$2; shift 2
@@ -276,7 +276,7 @@ json.dump({
     "core": {"name": "NP2kai", "version": "", "sha1": ""},
     "headers": {"MovieVersion": "Chimera Project File v1.1", "Platform": "PC9821"},
     "files": [{"name": "test.hdm", "sha1": sha1(sys.argv[1]), "slot": "floppy"}],
-    "firmware": [{"id": "FONT.ROM", "sha1": sha1(sys.argv[2])}] + more,
+    "firmware": [{"id": "font.rom", "sha1": sha1(sys.argv[2])}] + more,
     "settings": {},
     "input": "[Input]\n[/Input]\n",
 }, open(sys.argv[3], "w"))

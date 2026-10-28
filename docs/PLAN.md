@@ -688,10 +688,11 @@ there during `Init` before the seal so a savestate carries only what changed
 | File | What it is | When it is needed |
 |---|---|---|
 | `bios.rom` | The PC-98 BIOS | **Always** (owner, 2026-10-24): required firmware, NP2kai's compatible BIOS is never used |
-| `itf.rom` | The initial test firmware | **Always**, with the real BIOS |
+| `itf.rom` | The initial test firmware | **Not used** (owner, 2026-10-26): NP2kai is built with BIOS_SIMULATE, which always uses its own ITF and never opens the file |
 | `FONT.ROM` or `font.bmp` | The character generator, including kanji | Always: required firmware, no fallback is shipped (open question 5) |
 | `sound.rom` | The sound board's BIOS | **Always** (owner, 2026-10-24) |
-| `2608_bd.wav`, `_sd`, `_top`, `_hh`, `_tom`, `_rim` | YM2608 rhythm samples | **Always** (owner, 2026-10-24) |
+| `2608_bd.wav`, `_sd`, `_top`, `_hh`, `_tom`, `_rim` | YM2608 rhythm samples | **Always** (owner, 2026-10-24), unless the setting Rhythm Samples is YM2608 ROM |
+| `ym2608_adpcm_rom.bin` | The YM2608's own drum ROM, as MAME dumps it (8192 bytes, crc 23c9e0d8, in MAME's `ym2608.zip`) | When the setting Rhythm Samples is YM2608 ROM, in place of the six WAV files (waterbox/port/rhythm-rom.c) |
 | `bios9821.rom`, `d8000.rom`, `ide.rom` | IDE BIOS of PC-9821 machines | The PC9821 machine **with a hard disk** in the project (owner asked for always; see below) |
 | `sasi.rom`, `scsi.rom` | Hard-disk controller BIOS | When a SASI or SCSI disk is attached and the real BIOS is used |
 
@@ -700,8 +701,9 @@ with `requiredWhen` (porting-a-core.md, "Firmware").
 
 **Decided (owner, 2026-10-24): none of them is optional.** The settings
 "Use the Real BIOS", "Use PC-98 Sound BIOS", "Use PC-98 Rhythm Samples" and
-"Use the Real IDE BIOS" are gone. `bios.rom`, `itf.rom`, `sound.rom` and the
-six rhythm samples are required on both machines (`requiredWhen` machine in
+"Use the Real IDE BIOS" are gone. `bios.rom`, `sound.rom` and the
+six rhythm samples are required on both machines (`itf.rom` was too, until
+2026-10-26: the build never reads it) (`requiredWhen` machine in
 PC9821, PC98, since Chimera has no unconditional entry), and the driver
 always sets `usebios`. `ide.rom` is required, and used, on the PC9821
 machine whenever the project has a hard disk. Without a hard disk the real
@@ -839,7 +841,7 @@ not used. Known so far:
 | Sound board | PC-9801-86 (`SOUND_SW` 0x04) |
 | Sample rate | 44100 Hz (output only) |
 | GDC | uPD7220 |
-| Real BIOS | always (required `bios.rom`, `itf.rom`) |
+| Real BIOS | always (required `bios.rom`; `itf.rom` dropped 2026-10-26, never read) |
 | CPU reported (IA-32) | Pentium III with an SSE build, Pentium without MMX/SSE (`i386c/ia32/cpu.h`); fixed by our build flags |
 | FPU | SoftFloat (build A, section 2) |
 

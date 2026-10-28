@@ -42,6 +42,7 @@ SOUND_BOARDS = [r[0] for r in table(SETTINGS_H, 'NP2_SOUND_BOARDS')]
 MONITORS = [r[0] for r in table(SETTINGS_H, 'NP2_MONITORS')]
 BASE_CLOCKS = [r[0] for r in table(SETTINGS_H, 'NP2_BASE_CLOCKS')]
 SOUND_GENERATORS = [r[0] for r in table(SETTINGS_H, 'NP2_SOUND_GENERATORS')]
+RHYTHM_SAMPLES = [r[0] for r in table(SETTINGS_H, 'NP2_RHYTHM_SAMPLES')]
 
 names = [b[0] for b in BUTTONS]
 assert len(names) == len(set(names)), 'two buttons share a name'
@@ -184,6 +185,16 @@ SETTINGS = [
             "sound changes, never what the machine does, so a movie plays "
             "back the same with either.",
             "enum", SOUND_GENERATORS[0], options=SOUND_GENERATORS),
+    setting("rhythmSamples", "Rhythm Samples",
+            "Where the drums of the sound chip (YM2608) come from. WAV files, "
+            "the default, are the six 2608_*.WAV recordings PC-98 emulators "
+            "share. YM2608 ROM is the chip's own drum ROM, as MAME dumps it "
+            "(ym2608_adpcm_rom.bin, in MAME's ym2608.zip), played as the chip "
+            "plays them: the same drums, without the noise and ringing at "
+            "the end of the recordings, and within about 1.5 dB of their "
+            "loudness. Only the sound changes, never what the machine does, "
+            "so a movie plays back the same with either.",
+            "enum", RHYTHM_SAMPLES[0], options=RHYTHM_SAMPLES),
     setting("monitor", "Monitor",
             "The display mode the frame rate is counted in. One frame is one "
             "picture of the PC-98's display, and its rate depends on the "
@@ -217,51 +228,62 @@ SETTINGS = [
 RHYTHM = [("BD", "bass drum"), ("SD", "snare drum"), ("TOP", "top cymbal"),
           ("HH", "hi-hat"), ("TOM", "tom-tom"), ("RIM", "rim shot")]
 FIRMWARE = [
-    {"id": "FONT.ROM", "display": "PC-98 font ROM",
+    {"id": "font.rom", "display": "PC-98 font ROM",
      "description": "The character ROM of an NEC PC-98 you own. It holds the "
                     "8x8 and 8x16 characters and the 16x16 kanji.",
-     "size": 288768, "name": "FONT.ROM", "nameHints": ["font"],
+     "size": 288768, "name": "font.rom", "nameHints": ["font"],
      "label": "NEC PC-98 FONT.ROM",
      "requiredWhen": {"setting": "fontFile", "is": "FONT.ROM"}},
-    {"id": "FONT.BMP", "display": "PC-98 font picture",
+    {"id": "font.bmp", "display": "PC-98 font picture",
      "description": "The PC-98 character set as a picture (FONT.BMP), the "
                     "form NP2 and other emulators write from a font ROM.",
      # not "font": that would take a FONT.ROM for the picture
-     "size": 0, "name": "FONT.BMP", "nameHints": ["font.bmp"],
+     "size": 0, "name": "font.bmp", "nameHints": ["font.bmp"],
      "requiredWhen": {"setting": "fontFile", "is": "FONT.BMP"}},
     {"id": "bios.rom", "display": "PC-98 BIOS",
      "description": "The BIOS of a PC-98 you own (96 KiB, E8000h to FFFFFh).",
-     "size": 98304, "name": "BIOS.ROM", "nameHints": ["bios"],
+     "size": 98304, "name": "bios.rom", "nameHints": ["bios"],
      "requiredWhen": ALWAYS},
-    {"id": "itf.rom", "display": "PC-98 initial test firmware",
-     "description": "The start-up test program (ITF) of the same PC-98 as the "
-                    "BIOS (32 KiB, F8000h).",
-     "size": 32768, "name": "ITF.ROM", "nameHints": ["itf"],
-     "requiredWhen": ALWAYS},
+    # no itf.rom (owner, 2026-10-26): NP2kai is built with BIOS_SIMULATE,
+    # which always puts its own ITF at F8000h and never opens the file
+    # (bios/bios.c)
     {"id": "sound.rom", "display": "PC-98 sound BIOS",
      "description": "The BIOS (16 KiB) of a PC-9801-26K or PC-9801-86 sound "
                     "board you own.",
-     "size": 16384, "name": "SOUND.ROM", "nameHints": ["sound", "sndbios"],
+     "size": 16384, "name": "sound.rom", "nameHints": ["sound", "sndbios"],
      "requiredWhen": ALWAYS},
     {"id": "ide.rom", "display": "PC-9821 IDE BIOS",
      "description": "The IDE BIOS (8 KiB, D8000h) of a PC-9821 you own.",
-     "size": 8192, "name": "IDE.ROM", "nameHints": ["ide", "bios9821"],
+     "size": 8192, "name": "ide.rom", "nameHints": ["ide", "bios9821"],
      # only the PC-9821 machine has the IDE interface it sits on, and the
      # real IDE BIOS waits for ever on a bus with no hard disk, so it is
      # needed (and used) when the project has one
      "requiredWhen": {"all": [{"setting": "machine", "is": IA32[0]}, {"slot": "hdd"}]}},
 ] + [
-    # fmgen opens these, in capitals (sound/fmgen/fmgen_opna.cpp)
-    {"id": "2608_%s.WAV" % s, "display": "PC-98 rhythm sample (%s)" % what,
+    {"id": "2608_%s.wav" % s.lower(), "display": "PC-98 rhythm sample (%s)" % what,
      "description": "One of the six drum samples inside the sound chip (YM2608) "
                     "of a PC-9801-86 sound board, as the WAV files that PC-98 "
                     "emulators share. Without them the board's drum channel is "
                     "silent.",
-     "size": 0, "name": "2608_%s.WAV" % s, "nameHints": ["2608_%s." % s.lower()],
+     "size": 0, "name": "2608_%s.wav" % s.lower(), "nameHints": ["2608_%s." % s.lower()],
      "label": "YM2608 %s" % what,
-     "requiredWhen": ALWAYS}
+     "requiredWhen": {"setting": "rhythmSamples", "is": RHYTHM_SAMPLES[0]}}
     for s, what in RHYTHM
+] + [
+    {"id": "ym2608_adpcm_rom.bin", "display": "YM2608 rhythm ROM",
+     "description": "The drum ROM inside the sound chip (YM2608) of a "
+                    "PC-9801-86 sound board, as MAME dumps it (8 KiB, in "
+                    "MAME's ym2608.zip). Used in place of the six 2608_*.WAV "
+                    "files when Rhythm Samples is YM2608 ROM.",
+     "size": 8192, "name": "ym2608_adpcm_rom.bin", "nameHints": ["ym2608_adpcm"],
+     "label": "YM2608 rhythm ROM",
+     "requiredWhen": {"setting": "rhythmSamples", "is": RHYTHM_SAMPLES[1]}},
 ]
+# Every id in small letters, and the same list as the core's (np2-firmware.h):
+# the core finds a file whatever the case NP2kai asks in (port/dosio.c).
+FIRMWARE_FILES = [r[0] for r in table(read('np2-firmware.h'), 'NP2_FIRMWARE_FILES')]
+assert [f["id"] for f in FIRMWARE] == FIRMWARE_FILES, 'waterbox/np2-firmware.h'
+assert all(f["id"] == f["id"].lower() and f["name"] == f["id"] for f in FIRMWARE)
 setting_names = {s["name"]: s for s in SETTINGS}
 for f in FIRMWARE:
     for rw in f.get("requiredWhen", {}).get("all", [f["requiredWhen"]] if "requiredWhen" in f else []):

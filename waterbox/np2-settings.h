@@ -51,6 +51,14 @@
 	X("NP2", 0) \
 	X("fmgen", 1)
 
+/* rhythmSamples: (option, chimera_rhythm_rom). Where the YM2608's six drums
+ * come from: the six 2608_*.WAV files PC-98 emulators share (the default,
+ * as before), or the chip's own ROM as MAME dumps it, ym2608_adpcm_rom.bin,
+ * decoded by port/rhythm-rom.c. Only the sound differs. */
+#define NP2_RHYTHM_SAMPLES(X) \
+	X("WAV files", 0) \
+	X("YM2608 ROM", 1)
+
 /* monitor: (option, GDC dot clock in Hz, dots a line, lines a frame).
  *
  * Chimera asks for the frame rate once, after Init, so the core reports

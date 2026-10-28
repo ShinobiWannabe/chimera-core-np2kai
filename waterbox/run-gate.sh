@@ -9,9 +9,11 @@
 # Usage: run-gate.sh
 # Environment:
 #   NP2_FIRMWARE  a folder holding the required firmware, the user's own:
-#                 FONT.ROM, BIOS.ROM, ITF.ROM, SOUND.ROM, IDE.ROM (or
+#                 FONT.ROM, BIOS.ROM, SOUND.ROM, IDE.ROM (or
 #                 IDEBIOS.ROM) and the six 2608_*.WAV, any case. Without
-#                 all of them every leg that boots says SKIP.
+#                 all of them every leg that boots says SKIP. With MAME's
+#                 ym2608_adpcm_rom.bin there too, the drum legs also play
+#                 the drums from the YM2608's ROM; without it they say SKIP.
 #   NP2_FONT      FONT.ROM to use instead of the folder's (optional).
 #   NP2_GAMES     a folder of game folders, each holding its disks and a
 #                 "slots" file (and "settings" if it wants), run as the
@@ -57,8 +59,9 @@ else
 	bad "host clock or rand imported: '$real' (control: '$ctl')"
 fi
 
-# the required firmware (waterbox.config "firmware"), each under its id
-FIRMWARE_IDS="bios.rom itf.rom sound.rom ide.rom 2608_BD.WAV 2608_SD.WAV 2608_TOP.WAV 2608_HH.WAV 2608_TOM.WAV 2608_RIM.WAV"
+# the required firmware (waterbox.config "firmware"), each under its id, in
+# small letters as Chimera mounts it
+FIRMWARE_IDS="bios.rom sound.rom ide.rom 2608_bd.wav 2608_sd.wav 2608_top.wav 2608_hh.wav 2608_tom.wav 2608_rim.wav"
 fw_file() {	# fw_file <id> -> the file in NP2_FIRMWARE, any case (IDE.ROM may be IDEBIOS.ROM)
 	for n in "$1" $( [ "$1" = ide.rom ] && echo idebios.rom ); do
 		f=$(find "${NP2_FIRMWARE:-/nonexistent}" -maxdepth 1 -type f -iname "$n" 2>/dev/null | head -1)
@@ -72,7 +75,7 @@ fw_missing=""
 for id in $FIRMWARE_IDS; do fw_file "$id" > /dev/null || fw_missing="$fw_missing $id"; done
 # a folder for one run: the firmware, the disks, the slots and settings
 folder() {	# folder <name> -> path
-	d=$work/run-$1; mkdir -p "$d"; cp "$NP2_FONT" "$d/FONT.ROM"
+	d=$work/run-$1; mkdir -p "$d"; cp "$NP2_FONT" "$d/font.rom"
 	for id in $FIRMWARE_IDS; do cp "$(fw_file "$id")" "$d/$id"; done
 	echo "$d"
 }
@@ -174,6 +177,87 @@ PY
 	if [ "$v" = "vsync 998400/14197" ] && [ "$vn" = "$v" ] && ! cmp -s "$work/settings.n" "$work/savedisk.n"; then
 		ok "settings: the 31 kHz monitor at 1.9968 MHz reports 998400/14197 in both builds, and the run differs from the default one"
 	else bad "settings: rate '$v' / '$vn', or the settings changed nothing"; fi
+
+	# ---- leg: the drums, from the WAV files and from the YM2608's ROM ------
+	# The rhythm disk keys each drum in turn. With either sound generator the
+	# drums sound: the run differs from one with the WAV files taken away
+	# (NP2's own generator asked for them in small letters and was silent).
+	# With the ROM (ym2608_adpcm_rom.bin in NP2_FIRMWARE, the user's own,
+	# never committed) and no WAV files, native and sandbox are the same and
+	# only the sound differs from the WAV run.
+	only_sound() {	# only_sound <a> <b>: the same frames but for the sound, and the sound not
+		awk 'NR == FNR { a[$1] = $0; next }
+			{ split(a[$1], x, " "); for (i = 1; i <= NF; i++) if (i != 5 && x[i] != $i) bad++
+			  if (x[5] != $5) diff++ }
+			END { exit !(bad == 0 && diff > 0) }' "$work/$1.w" "$work/$2.w"
+	}
+	rom=$(fw_file ym2608_adpcm_rom.bin) || rom=""
+	dsave=$d	# folder() sets d
+	for g in NP2 fmgen; do
+		dr=$(folder rhythm-$g); python3 "$root/tests/gen-testdisk.py" --rhythm "$dr/rhythm.hdm"; echo '{"floppy":["rhythm.hdm"]}' > "$dr/slots"
+		printf '{"soundGenerator":"%s"}' "$g" > "$dr/settings"
+		compare "rhythm-$g" "$dr"
+		dq=$(folder rhythm-$g-none); cp "$dr/rhythm.hdm" "$dr/slots" "$dr/settings" "$dq/"; rm -f "$dq"/2608_*
+		"$runwbx" "$wbx" "$dq" "$frames" 2>/dev/null | lines > "$work/rhythm-$g-none.w"
+		if only_sound "rhythm-$g-none" "rhythm-$g"; then ok "drums, $g: the WAV files sound (the run differs from one without them only in the sound)"
+		else bad "drums, $g: the WAV files make no sound, or change more than the sound"; fi
+		if [ -z "$rom" ]; then skip "drums, $g, YM2608 ROM: ym2608_adpcm_rom.bin not in NP2_FIRMWARE (the user's own, never committed)"; continue; fi
+		dm=$(folder rhythm-$g-rom); cp "$dr/rhythm.hdm" "$dr/slots" "$dm/"; rm -f "$dm"/2608_*; cp "$rom" "$dm/ym2608_adpcm_rom.bin"
+		printf '{"soundGenerator":"%s","rhythmSamples":"YM2608 ROM"}' "$g" > "$dm/settings"
+		compare "rhythm-$g-rom" "$dm"
+		if only_sound "rhythm-$g" "rhythm-$g-rom" && only_sound "rhythm-$g-none" "rhythm-$g-rom"; then
+			ok "drums, $g, YM2608 ROM: they sound with no WAV files, and differ from the WAV run only in the sound"
+		else bad "drums, $g, YM2608 ROM: silent, or more than the sound changed"; fi
+	done
+
+	# ---- leg: firmware found whatever the case of the name asked for --------
+	# Chimera mounts each firmware file under its id, in small letters; NP2kai
+	# and fmgen ask in either case (2608_bd.wav, 2608_BD.WAV, FONT.ROM).
+	# tests/firmware-names.c asks for every id in small letters, capitals and
+	# mixed case. Then each file must be used: on the rhythm disk, taking any
+	# one file away changes the run (its frames or the memory at the end); ide.rom, read only with a hard disk, on
+	# its own with a blank one fitted.
+	if gcc -o "$work/firmware-names" "$root/tests/firmware-names.c" "$root/build/native-np21/obj/waterbox_port_dosio.o" \
+		"$root/build/native-np21/obj/extern_NP2kai_common_milstr.o" 2>"$work/firmware-names.err" &&
+		"$work/firmware-names" > "$work/firmware-names.out"; then
+		ok "firmware names: $(tail -1 "$work/firmware-names.out") (each id in small letters, capitals and mixed case)"
+	else bad "firmware names: $(cat "$work/firmware-names.out" "$work/firmware-names.err" 2>/dev/null | tail -3)"; fi
+	di=$(folder used-ide); echo '{"hdd":["blank.nhd"]}' > "$di/slots"
+	python3 - "$di/blank.nhd" <<'PY'
+import struct, sys
+cyl, heads, secs, size = 20, 8, 17, 512
+hdr = b"T98HDDIMAGE.R0\0\0" + bytes(0x100) + struct.pack("<IIHHH", 512, cyl, heads, secs, size)
+hdr += bytes(512 - len(hdr))
+open(sys.argv[1], "wb").write(hdr + bytes(cyl * heads * secs * size))
+PY
+	"$runwbx" "$wbx" "$di" "$frames" 2>/dev/null | lines > "$work/used-ide.ref"
+	dc=$(folder used-noide); rm -f "$dc"/*; cp "$di"/* "$dc/"; rm -f "$dc/ide.rom"
+	"$runwbx" "$wbx" "$dc" "$frames" 2>/dev/null | lines > "$work/used-ide.no"
+	if [ "$(wc -l < "$work/used-ide.ref")" -eq "$frames" ] && ! cmp -s "$work/used-ide.ref" "$work/used-ide.no"; then
+		ok "firmware used: with a hard disk, taking ide.rom away changes the run"
+	else bad "firmware used: ide.rom not found or not used"; fi
+	dh=$(folder used-ref); python3 "$root/tests/gen-testdisk.py" --rhythm "$dh/rhythm.hdm"
+	echo '{"floppy":["rhythm.hdm"]}' > "$dh/slots"
+	[ -n "$rom" ] && cp "$rom" "$dh/ym2608_adpcm_rom.bin"
+	for set in 'NP2:WAV files' 'fmgen:WAV files' 'NP2:YM2608 ROM' 'fmgen:YM2608 ROM'; do
+		g=${set%%:*}; r=${set#*:}; lbl=used-$g-$(echo "$r" | tr -c 'A-Za-z0-9\n' '_')
+		if [ "$r" = "YM2608 ROM" ] && [ -z "$rom" ]; then skip "firmware used, $g, $r: ym2608_adpcm_rom.bin not in NP2_FIRMWARE"; continue; fi
+		printf '{"soundGenerator":"%s","rhythmSamples":"%s"}' "$g" "$r" > "$dh/settings"
+		"$runwbx" "$wbx" "$dh" "$frames" /dev/null "$work/$lbl.ref.mem" 2>/dev/null | lines > "$work/$lbl.ref"
+		if [ "$r" = "WAV files" ]; then files="font.rom bios.rom sound.rom 2608_bd.wav 2608_sd.wav 2608_top.wav 2608_hh.wav 2608_tom.wav 2608_rim.wav"
+		else files="font.rom bios.rom sound.rom ym2608_adpcm_rom.bin"; fi
+		unused=""
+		for f in $files; do
+			dc=$(folder "$lbl-no-$f"); rm -f "$dc"/*; cp "$dh"/* "$dc/"; rm -f "$dc/$f"
+			"$runwbx" "$wbx" "$dc" "$frames" /dev/null "$work/$lbl.no.mem" 2>/dev/null | lines > "$work/$lbl.no-$f"
+			cmp -s "$work/$lbl.ref" "$work/$lbl.no-$f" && cmp -s "$work/$lbl.ref.mem" "$work/$lbl.no.mem" && unused="$unused $f"
+			rm -rf "${dc:?}" "$work/$lbl.no.mem"
+		done
+		if [ -z "$unused" ] && [ "$(wc -l < "$work/$lbl.ref")" -eq "$frames" ]; then
+			ok "firmware used, $g, $r: taking away any of the $(echo $files | wc -w) files changes the run (frames or memory)"
+		else bad "firmware used, $g, $r: not found or not used:$unused"; fi
+	done
+	d=$dsave
 
 	# ---- leg: the 286 machine, the other half of the same core.wbx --------
 	# Its settings say machine PC98; it is held to the 286 native build, and

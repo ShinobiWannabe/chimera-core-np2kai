@@ -50,6 +50,15 @@ int64_t chimera_vfs_blocks_held(int i);
 void chimera_vfs_alias(const char *name, const char *mount);
 int chimera_vfs_join(const char *path, const char *const *parts, int n);
 int chimera_vfs_text(const char *path, const char *text);
+/* the mount of the firmware file `path` names, compared in small letters
+ * (np2-firmware.h), or NULL when it names none */
+const char *chimera_firmware_name(const char *path);
+
+/* rhythm-rom.c: with the setting rhythmSamples on "YM2608 ROM" (np2-driver.c
+ * sets chimera_rhythm_rom), the drum WAV file `name` (2608_bd.wav and so on,
+ * any case) as decoded from the ROM: 1 and the file in memory, or 0. */
+extern int chimera_rhythm_rom;
+int chimera_rhythm_image(const char *name, const uint8_t **data, uint32_t *size);
 
 #ifdef __cplusplus
 }

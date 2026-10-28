@@ -57,6 +57,9 @@ DROP_EXACT = {
     'sound/adpcmg.c',          # adpcmg-np21w.c
     'vram/maketext.c',         # maketext-np21w.c
     'sound/cs4231c.c',         # cs4231-dma-np21w.c
+    # the drums from the YM2608's ROM as well as the WAV files
+    'sound/rhythmc.c',         # built through waterbox/port/rhythm-rom.c
+    'sound/fmgen/fmgen_file.cpp',  # built through waterbox/port/fmgen-file-rom.cpp
 }
 # Upstream's CMake build has these and sdl/Makefile.common forgot them; the
 # 118 board's ADPCM needs them. They are NP2kai's own code.

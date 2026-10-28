@@ -12,7 +12,11 @@ With --counter the boot sector is instead the counter the tools legs search
 for (waterbox/tests/frontend-tools.lua): it counts frames and keys in its
 own memory and shows both counts on the text screen.
 
-usage: gen-testdisk.py [--no-write | --counter] <out.hdm>
+With --rhythm the boot sector plays the 86 board's six drums one by one,
+then all together, then a short beat, half a second apart, and stops: sound
+for the legs that check where the drums come from (setting rhythmSamples).
+
+usage: gen-testdisk.py [--no-write | --counter | --rhythm] <out.hdm>
 """
 import sys
 
@@ -102,14 +106,65 @@ COUNTER = bytes.fromhex(
     "e4ab26c685fe1fe1c3909090909090909090909090900000000000004348"
     "494d455241204e50324b414920434f554e544552205445535400")
 
+# The drums, assembled (nasm -f bin) from:
+#	bits 16
+#	org 0
+#	start:	mov ax, cs
+#		mov ds, ax
+#		cld
+#		mov si, init
+#		call regs
+#		mov si, hits
+#	next:	lodsb			; AL = key-on bits, 0 = done
+#		test al, al
+#		jz hang
+#		mov ah, al
+#		mov al, 0x10
+#		call put
+#		mov cx, 30		; half a second between hits
+#	w1:	in al, 0x60		; text GDC status: end of retrace
+#		test al, 0x20
+#		jnz w1
+#	w2:	in al, 0x60		; then the next retrace
+#		test al, 0x20
+#		jz w2
+#		loop w1
+#		jmp next
+#	hang:	jmp hang
+#	regs:	lodsw			; AL = register, AH = value, 0xff ends
+#		cmp al, 0xff
+#		je .r
+#		call put
+#		jmp regs
+#	.r:	ret
+#	put:	mov dx, 0x188		; the 86 board's OPNA: address
+#		out dx, al
+#		mov al, ah
+#		mov dx, 0x18a		; data
+#		out dx, al
+#		ret
+#	init:	db 0x11, 0x30		; rhythm total level: 11 dB down (fmgen clips at the top)
+#		db 0x18, 0xdf, 0x19, 0xdf, 0x1a, 0xdf	; each drum: both sides, loudest
+#		db 0x1b, 0xdf, 0x1c, 0xdf, 0x1d, 0xdf
+#		db 0xff, 0xff
+#	hits:	db 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x3f, 0x01, 0x08, 0x01, 0x08, 0x02, 0x08, 0
+#		db "CHIMERA NP2KAI RHYTHM TEST", 0
+RHYTHM = bytes.fromhex(
+    "8cc88ed8fcbe4500e82400be5500ac84c0741a88c4b010e82000b91e00e4"
+    "60a82075fae460a82074fae2f2ebe1ebfead3cff7405e80300ebf6c3ba88"
+    "01ee88e0ba8a01eec3113018df19df1adf1bdf1cdf1ddfffff0102040810"
+    "203f010801080208004348494d455241204e50324b41492052485954484d"
+    "205445535400")
+
 args = sys.argv[1:]
 no_write = "--no-write" in args
 counter = "--counter" in args
-args = [a for a in args if a not in ("--no-write", "--counter")]
-if len(args) != 1 or (no_write and counter):
+rhythm = "--rhythm" in args
+args = [a for a in args if a not in ("--no-write", "--counter", "--rhythm")]
+if len(args) != 1 or no_write + counter + rhythm > 1:
     sys.exit(__doc__)
-ipl = bytearray(COUNTER if counter else IPL)
-assert counter or ipl[INT_1BH:INT_1BH + 2] == b"\xcd\x1b"
+ipl = bytearray(COUNTER if counter else RHYTHM if rhythm else IPL)
+assert counter or rhythm or ipl[INT_1BH:INT_1BH + 2] == b"\xcd\x1b"
 if no_write:
     ipl[INT_1BH:INT_1BH + 2] = b"\x90\x90"
 image = bytearray(SIZE)

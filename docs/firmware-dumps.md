@@ -23,7 +23,9 @@ New package: `np2kai-8bee14b429d382f656798689338400d206a34937.chimeraCore`. The 
 
 Files changed: `tools/gen-config.py`, `waterbox/waterbox.config`, `docs/firmware-dumps.md` (this report), and a log line in `docs/PLAN.md`. Nothing is committed.
 
-Sizes the core checks: BIOS.ROM 98,304 bytes, ITF.ROM 32,768, SOUND.ROM 16,384, IDE.ROM 8,192, FONT.ROM 288,768. FONT.BMP and the WAVs can be any size.
+Update 2026-10-26: ITF.ROM is no longer firmware for the core. NP2kai is built with BIOS_SIMULATE and never opens it, so the entry was dropped (owner). The ITF.ROM rows below are kept as a record.
+
+Sizes the core checks: BIOS.ROM 98,304 bytes, ITF.ROM 32,768 (no longer used), SOUND.ROM 16,384, IDE.ROM 8,192, FONT.ROM 288,768. FONT.BMP and the WAVs can be any size.
 
 ## Notes on some files
 

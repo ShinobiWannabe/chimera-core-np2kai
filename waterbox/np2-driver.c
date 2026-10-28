@@ -145,8 +145,12 @@ static void configure(void)
 #define X(option, fmgen) if (!strcmp(name, option)) np2cfg.usefmgen = fmgen;
 	NP2_SOUND_GENERATORS(X)
 #undef X
+	setting_str("rhythmSamples", "WAV files", name, sizeof name);
+#define X(option, rom) if (!strcmp(name, option)) chimera_rhythm_rom = rom;
+	NP2_RHYTHM_SAMPLES(X)
+#undef X
 	np2cfg.samplingrate = 44100;
-	/* the real BIOS, ITF, sound BIOS, IDE BIOS (PC-9821) and drum samples
+	/* the real BIOS, sound BIOS, IDE BIOS (PC-9821) and drum samples
 	 * are required firmware (owner, 2026-10-24): never NP2kai's stand-ins */
 	np2cfg.usebios = 1;
 #if defined(SUPPORT_IDEIO)

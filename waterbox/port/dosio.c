@@ -18,11 +18,13 @@
  * the host files are never written either.
  */
 #include <compiler.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dosio.h>
 #include "chimera-port.h"
+#include "../np2-firmware.h"
 
 #define BLOCK_SHIFT 12
 #define BLOCK_BYTES (1u << BLOCK_SHIFT)
@@ -62,6 +64,30 @@ static const char *mount_name(const char *path)
 #else
 	return path;
 #endif
+}
+
+/* The firmware is mounted under its id, in small letters
+ * (np2-firmware.h). The name NP2kai asks for is put in small letters for
+ * the comparison, so 2608_BD.WAV, 2608_bd.wav and Font.Rom all find their
+ * mount. Any other file (a disk, the slots) is opened by its own name. */
+static const char *const s_firmware[] = {
+#define X(name) name,
+	NP2_FIRMWARE_FILES(X)
+#undef X
+};
+
+const char *chimera_firmware_name(const char *path)
+{
+	char low[MAX_PATH];
+	const char *name = file_getname(path);
+	size_t i;
+	for (i = 0; name[i] && i < sizeof low - 1; i++)
+		low[i] = (char)tolower((unsigned char)name[i]);
+	low[i] = '\0';
+	for (i = 0; i < NELEMENTS(s_firmware); i++)
+		if (!strcmp(low, s_firmware[i]))
+			return s_firmware[i];
+	return NULL;
 }
 
 static VNODE *node_find(const char *path)
@@ -205,9 +231,11 @@ void chimera_vfs_alias(const char *name, const char *mount)
 static VNODE *node_open(const char *path)
 {
 	VNODE *n = node_find(path);
+	const char *fw;
 	FILE *f;
 	if (n) return n->deleted ? NULL : n;
-	f = fopen(mount_name(path), "rb");
+	fw = chimera_firmware_name(path);
+	f = fopen(fw ? fw : mount_name(path), "rb");
 	if (!f && s_aliasName[0] && !strcmp(file_getname(path), s_aliasName))
 		f = fopen(s_aliasMount, "rb");
 	if (!f) return NULL;
