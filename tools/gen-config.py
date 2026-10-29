@@ -43,6 +43,7 @@ MONITORS = [r[0] for r in table(SETTINGS_H, 'NP2_MONITORS')]
 BASE_CLOCKS = [r[0] for r in table(SETTINGS_H, 'NP2_BASE_CLOCKS')]
 SOUND_GENERATORS = [r[0] for r in table(SETTINGS_H, 'NP2_SOUND_GENERATORS')]
 RHYTHM_SAMPLES = [r[0] for r in table(SETTINGS_H, 'NP2_RHYTHM_SAMPLES')]
+FLOPPIES_AT_START = [r[0] for r in table(SETTINGS_H, 'NP2_FLOPPIES_AT_START')]
 
 names = [b[0] for b in BUTTONS]
 assert len(names) == len(set(names)), 'two buttons share a name'
@@ -75,6 +76,7 @@ MNEMONICS = {
     'Drive 2 Previous Floppy Disk': '{', 'Drive 2 Next Floppy Disk': '}',
     'Drive 2 Swap Floppy Disk': 'w',
     'Reset': 'R',
+    'Drive 1 Eject Floppy Disk': 'E', 'Drive 2 Eject Floppy Disk': 'F',
 }
 
 
@@ -206,6 +208,17 @@ SETTINGS = [
             "game runs in, so the movie's times are right. It decides how a "
             "movie's frames are counted, so a movie needs the same value.",
             "enum", MONITORS[0], options=MONITORS),
+    setting("floppiesAtStart", "Floppies at Start",
+            "Which drives have a floppy in them when the machine is switched "
+            "on. Drives 1 and 2, the default, get the first and second "
+            "floppies of the project. The PC-98 boots a formatted floppy in "
+            "either drive before the hard disk, so to boot the hard disk "
+            "with floppies listed, choose Drive 1 only (when the first "
+            "floppy does not boot) or None. An empty drive takes the floppy "
+            "its selector is on (the first for drive 1, the second for "
+            "drive 2) when its Swap input is pressed, and the Eject inputs "
+            "empty a drive at any time.",
+            "enum", FLOPPIES_AT_START[0], options=FLOPPIES_AT_START),
     setting("startTime", "Start Time",
             "The date and time on the machine's calendar clock when it is "
             "switched on, in UTC. The clock then runs with the emulated time, "

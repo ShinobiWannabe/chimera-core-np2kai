@@ -74,6 +74,16 @@
 	X("31khz", 25260000 / 8, 100, 449) \
 	X("31khz480", 25260000 / 8, 100, 525)
 
+/* floppiesAtStart: (option, how many drives get a disk at power-on). A
+ * formatted floppy in drive 1 or 2 is booted before the hard disk, so a
+ * project that boots its hard disk and uses floppies later starts with the
+ * drives empty; Swap then puts the selected disk in. The default is both,
+ * as before. */
+#define NP2_FLOPPIES_AT_START(X) \
+	X("Drives 1 and 2", 2) \
+	X("Drive 1 only", 1) \
+	X("None", 0)
+
 /* baseClock: (option, Hz). pccore.c picks between these two. */
 #define NP2_BASE_CLOCKS(X) \
 	X("2.4576 MHz", 2457600) \

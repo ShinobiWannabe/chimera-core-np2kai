@@ -342,6 +342,22 @@ PY
 		ok "floppies: Swap with drive 2's disk makes the drives trade, and puts another in; with 0 MB the extended memory domain is hidden"
 	else bad "floppies: '$m1' then '$m2'"; fi
 
+	# ---- leg: drives can start empty, and Eject empties one ---------------
+	# Floppies at Start None leaves both drives empty, each selector on the
+	# disk it would have had; Swap puts that disk in. Drive 1 only leaves
+	# drive 2 empty. Eject takes drive 1's disk out; the control has none.
+	de=$(folder empty-drives); cp "$df"/*.hdm "$de/"; cp "$df/slots" "$de/slots"
+	echo '{"extraMemoryMB":0,"floppiesAtStart":"None"}' > "$de/settings"
+	e1=$(NP2_MEDIA=1 "$runwbx" "$wbx" "$de" 200 2>/dev/null | grep '^MEDIA')
+	e2=$(NP2_MEDIA=1 NP2_PRESS="120:Drive 2 Swap Floppy Disk:4" "$runwbx" "$wbx" "$de" 200 2>/dev/null | grep '^MEDIA')
+	echo '{"extraMemoryMB":0,"floppiesAtStart":"Drive 1 only"}' > "$de/settings"
+	e3=$(NP2_MEDIA=1 "$runwbx" "$wbx" "$de" 200 2>/dev/null | grep '^MEDIA')
+	e4=$(NP2_MEDIA=1 NP2_PRESS="120:Drive 1 Eject Floppy Disk:4" "$runwbx" "$wbx" "$df" 200 2>/dev/null | grep '^MEDIA')
+	e5=$(NP2_MEDIA=1 "$runwbx" "$wbx" "$df" 200 2>/dev/null | grep '^MEDIA')
+	if [ "$e1" = "MEDIA -1 -1" ] && [ "$e2" = "MEDIA -1 1" ] && [ "$e3" = "MEDIA 0 -1" ] && [ "$e4" = "MEDIA -1 1" ] && [ "$e5" = "MEDIA 0 1" ]; then
+		ok "floppies: None and Drive 1 only start drives empty, Swap fills one, Eject empties drive 1 (control: both full)"
+	else bad "floppies at start: '$e1' '$e2' '$e3', eject '$e4', control '$e5'"; fi
+
 	# ---- leg: no limit on floppies ---------------------------------------
 	# Eighteen floppies: Previous from the first goes round to the last.
 	dm=$(folder many-floppies); list=

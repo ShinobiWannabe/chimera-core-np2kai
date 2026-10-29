@@ -127,6 +127,9 @@ uint64_t np2drv_clocks(void)
 
 /* ------------------------------------------------------------ settings */
 
+/* how many drives get a disk at power-on (the Floppies at Start setting) */
+static int g_floppiesAtStart = 2;
+
 static void setting_str(const char *key, const char *dflt, char *out, int outsz)
 {
 	if (wbx_setting_str(key, out, outsz) < 0) {
@@ -170,6 +173,10 @@ static void configure(void)
 	setting_str("rhythmSamples", "WAV files", name, sizeof name);
 #define X(option, rom) if (!strcmp(name, option)) chimera_rhythm_rom = rom;
 	NP2_RHYTHM_SAMPLES(X)
+#undef X
+	setting_str("floppiesAtStart", "Drives 1 and 2", name, sizeof name);
+#define X(option, drives) if (!strcmp(name, option)) g_floppiesAtStart = drives;
+	NP2_FLOPPIES_AT_START(X)
 #undef X
 	np2cfg.samplingrate = 44100;
 	/* the real BIOS, sound BIOS, IDE BIOS (PC-9821) and drum samples
@@ -421,8 +428,12 @@ static void attach_removable(void)
 	g_floppies = (char (*)[MAX_PATH])calloc((size_t)(n > 0 ? n : 1), MAX_PATH);
 	g_floppyCount = g_floppies ? slot_names("floppy", g_floppies, n > 0 ? n : 1) : 0;
 	for (i = 0; i < g_floppyCount && i < 2; i++) {
+		/* a drive left empty by Floppies at Start has its selector on the
+		 * disk it would have had, for its Swap to put in */
+		g_pendingFloppy[i] = i;
+		if (i >= g_floppiesAtStart) continue;
 		diskdrv_setfdd((REG8)i, g_floppies[i], 0);
-		g_pendingFloppy[i] = g_insertedFloppy[i] = i;
+		g_insertedFloppy[i] = i;
 	}
 	attach_cdrom();
 }
@@ -605,6 +616,15 @@ static void floppy_swap(int drive)
 	}
 }
 
+/* Eject takes the disk out and leaves the drive empty; the selector stays
+ * where it is, so Swap puts back the disk it is on. */
+static void floppy_eject(int drive)
+{
+	if (!floppy_drive_used(drive) || g_insertedFloppy[drive] < 0) return;
+	g_insertedFloppy[drive] = -1;
+	diskdrv_setfdd((REG8)drive, NULL, 0);
+}
+
 /* The PC's reset switch: the machine starts again, the disks stay in, with
  * everything written to them (the file layer keeps the writes, so the hard
  * disks NP2kai opens again read them back). Reboot Core would start from
@@ -660,6 +680,8 @@ static void apply_input(void)
 		case NP2BTN_FDD1_SWAP: if (rose(i)) floppy_swap(0); break;
 		case NP2BTN_FDD2_SWAP: if (rose(i)) floppy_swap(1); break;
 		case NP2BTN_RESET:     if (rose(i)) machine_reset(); break;
+		case NP2BTN_FDD1_EJECT: if (rose(i)) floppy_eject(0); break;
+		case NP2BTN_FDD2_EJECT: if (rose(i)) floppy_eject(1); break;
 		}
 	}
 	chimera_mouse_buttons(mleft, mright);
