@@ -588,15 +588,21 @@ static void floppy_step(int drive, int delta)
 	g_pendingFloppy[drive] = (g_pendingFloppy[drive] + delta + g_floppyCount) % g_floppyCount;
 }
 
-/* Swap puts the selected disk in, unless it is in the other drive: one
- * image in two drives would be two NP2kai drives, each with its own track
- * cache, writing one disk. */
+/* Swap puts the selected disk in. When that disk is in the other drive, the
+ * two drives trade disks: one image in two drives would be two NP2kai
+ * drives, each with its own track cache, writing one disk. diskdrv_setfdd
+ * takes the old disk out at once and opens the new one only after its
+ * delay, so neither image is ever open in both drives. */
 static void floppy_swap(int drive)
 {
-	int disk = g_pendingFloppy[drive];
-	if (!floppy_drive_used(drive) || disk == g_insertedFloppy[1 - drive]) return;
+	int other = 1 - drive, disk = g_pendingFloppy[drive], cur = g_insertedFloppy[drive];
+	if (!floppy_drive_used(drive)) return;
 	g_insertedFloppy[drive] = disk;
 	diskdrv_setfdd((REG8)drive, g_floppies[disk], 0);
+	if (disk == g_insertedFloppy[other]) {
+		g_pendingFloppy[other] = g_insertedFloppy[other] = cur;
+		diskdrv_setfdd((REG8)other, cur >= 0 ? g_floppies[cur] : NULL, 0);
+	}
 }
 
 /* The PC's reset switch: the machine starts again, the disks stay in, with

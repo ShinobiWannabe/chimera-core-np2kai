@@ -332,14 +332,14 @@ PY
 
 	# ---- leg: one floppy is never in both drives, and an empty domain hides --
 	# Three floppies: drive 1 holds 0, drive 2 holds 1. Selecting disk 1 for
-	# drive 1 and pressing Swap leaves drive 1 as it was; selecting disk 2
+	# drive 1 and pressing Swap makes the drives trade disks; selecting disk 2
 	# puts it in. With no extended memory its domain is hidden from the tools.
 	df=$(folder floppies); cp "$dp/c.hdm" "$df/a.hdm"; cp "$dp/c.hdm" "$df/b.hdm"; cp "$dp/c.hdm" "$df/c.hdm"
 	echo '{"floppy":["a.hdm","b.hdm","c.hdm"]}' > "$df/slots"; echo '{"extraMemoryMB":0}' > "$df/settings"
 	m1=$(NP2_MEDIA=1 NP2_PRESS="100:Drive 1 Next Floppy Disk:4,120:Drive 1 Swap Floppy Disk:4" "$runwbx" "$wbx" "$df" 200 2>/dev/null | grep '^MEDIA')
 	m2=$(NP2_MEDIA=1 NP2_PRESS="100:Drive 1 Next Floppy Disk:4,110:Drive 1 Next Floppy Disk:4,120:Drive 1 Swap Floppy Disk:4" "$runwbx" "$wbx" "$df" 200 2>/dev/null | grep '^MEDIA\|^HIDDEN' | tr '\n' ' ')
-	if [ "$m1" = "MEDIA 0 1" ] && [ "$m2" = "MEDIA 2 1 HIDDEN 0 1 0 0 0 0 0 0 " ]; then
-		ok "floppies: Swap will not put drive 2's disk in drive 1, and puts another in; with 0 MB the extended memory domain is hidden"
+	if [ "$m1" = "MEDIA 1 0" ] && [ "$m2" = "MEDIA 2 1 HIDDEN 0 1 0 0 0 0 0 0 " ]; then
+		ok "floppies: Swap with drive 2's disk makes the drives trade, and puts another in; with 0 MB the extended memory domain is hidden"
 	else bad "floppies: '$m1' then '$m2'"; fi
 
 	# ---- leg: no limit on floppies ---------------------------------------
