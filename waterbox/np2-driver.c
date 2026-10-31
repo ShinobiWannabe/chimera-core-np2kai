@@ -36,6 +36,10 @@
 #include <vram/scrndraw.h>
 #include <fdd/diskdrv.h>
 #include <fdd/sxsi.h>
+#include <nevent.h>
+#if defined(SUPPORT_IDEIO)
+#include <cbus/ideio.h>
+#endif
 #if defined(SUPPORT_WAB)
 #include <wab/wab.h>
 #endif
@@ -56,7 +60,8 @@ static ECL_INVISIBLE int g_render = 1;
 static void list_drives(void);
 /* the drives NP2kai read or wrote this frame, and last frame's, which the
  * lights show ([0] the floppy units, [1] the SASI/IDE units) */
-static uint8_t g_accessed[2][4], g_lit[2][4];
+/* [kind][unit]: SASI/IDE units 0-3, SCSI IDs at 4 up */
+static uint8_t g_accessed[2][8], g_lit[2][8];
 static int g_width = 640, g_height = 400;
 static int16_t *g_audio;
 static int g_audioPairs;
@@ -190,7 +195,12 @@ static void configure(void)
 	NP2_BASE_CLOCKS(X)
 #undef X
 	/* a list of numbers, so the value comes as text */
+#if defined(CPUCORE_IA32)
 	setting_str("clockMultiplier", "", name, sizeof name);
+#else
+	/* the 286 machine's default is a real VX's x4 (waterbox.config) */
+	setting_str("clockMultiplier", "4", name, sizeof name);
+#endif
 	if (strtol(name, NULL, 10) > 0) np2cfg.multiple = (UINT)strtol(name, NULL, 10);
 	np2cfg.EXTMEM = (UINT16)wbx_setting_long("extraMemoryMB", np2cfg.EXTMEM);
 	setting_str("soundBoard", "", name, sizeof name);
@@ -277,14 +287,16 @@ static const char *bare_slot(char *name)
 {
 	static const char *const floppy[] = { "d88", "88d", "d98", "98d", "fdi", "hdm", "xdf", "dup", "2hd", "tfd", "nfd", "dcp", "dcu",
 		"fdd", "hd4", "hd5", "hd9", "h01", "hdb", "ddb", "dd6", "dd9", "flp", "fim", "dip", "ima", NULL };
-	static const char *const hdd[] = { "hdi", "nhd", "thd", "vhd", NULL };
+	static const char *const hdd[] = { "hdi", "nhd", "thd", "vhd", "slh", NULL };
+	/* the formats only a SCSI disk can be (.hdd is Virtual98's SCSI image) */
+	static const char *const scsi[] = { "hdd", "hdn", "hds", NULL };
 	static const char *const cdrom[] = { "cue", "iso", NULL };
 	static const struct { const char *id; const char *const *ext; } kinds[] = {
-		{ "floppy", floppy }, { "hdd", hdd }, { "cdrom", cdrom } };
+		{ "floppy", floppy }, { "hdd", hdd }, { "scsi", scsi }, { "cdrom", cdrom } };
 	const char *ext;
 	size_t n, k, e;
 	FILE *f;
-	if (wbx_slot_count("floppy") || wbx_slot_count("hdd") || wbx_slot_count("cdrom"))
+	if (wbx_slot_count("floppy") || wbx_slot_count("hdd") || wbx_slot_count("scsi") || wbx_slot_count("cdrom"))
 		return NULL;
 	f = fopen("rom.name", "rb");
 	if (!f) return NULL;
@@ -317,9 +329,9 @@ static int slot_names(const char *id, char names[][MAX_PATH], int max)
 	return got;
 }
 
-/* the SASI/IDE unit each hard disk went in, and the CD-ROM drive's, for
- * the drive lights */
-static int g_hddUnit[2], g_hddCount, g_cdUnit = -1;
+/* the SASI/IDE unit each hard disk went in, how many SCSI disks there are
+ * (SCSI IDs 0 up), and the CD-ROM drive's unit, for the drive lights */
+static int g_hddUnit[2], g_hddCount, g_scsiCount, g_cdUnit = -1;
 
 static void attach_hard_disks(void)
 {
@@ -336,6 +348,16 @@ static void attach_hard_disks(void)
 		g_hddUnit[g_hddCount++] = j;
 		milstr_ncpy(np2cfg.sasihdd[j++], names[i], MAX_PATH);
 	}
+#if defined(SUPPORT_SCSI)
+	/* SCSI disks: pccore_reset fits the PC-9801-55 board when one opens
+	 * (sxsi_isscsi), with NP2kai's own SCSI BIOS. scsi.rom is not firmware:
+	 * the real BIOS, from the only dump at hand (8 KiB, sha1 3D7166F0...),
+	 * stops at D200:2000 with a black screen and never boots the disk */
+	for (i = 0; i < 4; i++) np2cfg.scsihdd[i][0] = '\0';
+	g_scsiCount = slot_names("scsi", names, 4);
+	for (i = 0; i < g_scsiCount; i++)
+		milstr_ncpy(np2cfg.scsihdd[i], names[i], MAX_PATH);
+#endif
 }
 
 /* every floppy of the project, however many (file_slots.json has no limit) */
@@ -470,29 +492,92 @@ static void attach_removable(void)
 	attach_cdrom();
 }
 
-/* the project's CD in the IDE CD-ROM drive; pccore_reset takes it out, and
- * the Reset input puts it back the same way (the joined sheet is made once:
- * the file layer keeps it, under the name the first call chose) */
-static char g_cdPath[MAX_PATH];
+/* Every CD of the project (file_slots.json has no limit), as the paths
+ * NP2kai opens: a cue sheet with a file a track becomes its joined sheet,
+ * made once (the file layer keeps it). The CD-ROM drive works like a floppy
+ * drive: Previous and Next move a selector, Swap puts the selected disc in
+ * and Eject takes it out. The first CD is in the drive at power-on. */
+static char (*g_cds)[MAX_PATH], (*g_cdNames)[MAX_PATH];
+static int g_cdCount, g_pendingCd, g_insertedCd = -1;
 
+#if defined(SUPPORT_IDEIO)
+extern char cdchange_flag;
+void cdchange_timeoutproc(NEVENTITEM item);
+
+/* NP2kai changes a disc in two steps: sxsi_devopen takes the old one out,
+ * and an event 6 seconds of emulated time later puts the new one in, so
+ * the guest sees the drive empty in between (a real drive's tray). A
+ * change still waiting is finished first, so its disc is the one taken out. */
+static void cd_open(const char *path)
+{
+	if (g_cdUnit < 0) return;
+	if (cdchange_flag) {
+		nevent_reset(NEVENT_CDWAIT);
+		cdchange_timeoutproc(NULL);
+	}
+	sxsi_devopen((REG8)g_cdUnit, path);
+}
+#endif
+
+/* the CD in the IDE CD-ROM drive at power-on; pccore_reset takes it out,
+ * and the Reset input puts back the disc that was in (none if ejected) */
 static void attach_cdrom(void)
 {
 #if defined(SUPPORT_IDEIO)
 	int i;
-	if (!g_cdPath[0]) {
-		char cd[1][MAX_PATH], joined[MAX_PATH];
-		if (!slot_names("cdrom", cd, 1)) return;
-		if (join_cue(cd[0], joined, sizeof joined))
-			milstr_ncpy(cd[0], joined, MAX_PATH);
-		milstr_ncpy(g_cdPath, cd[0], MAX_PATH);
+	if (!g_cds) {
+		int n = wbx_slot_count("cdrom");
+		char joined[MAX_PATH];
+		g_cds = (char (*)[MAX_PATH])calloc((size_t)(n > 0 ? n : 1), MAX_PATH);
+		g_cdNames = (char (*)[MAX_PATH])calloc((size_t)(n > 0 ? n : 1), MAX_PATH);
+		g_cdCount = g_cds && g_cdNames ? slot_names("cdrom", g_cds, n > 0 ? n : 1) : 0;
+		/* the drive's media list shows the names the project gave */
+		if (g_cdCount) memcpy(g_cdNames, g_cds, (size_t)g_cdCount * MAX_PATH);
+		for (i = 0; i < g_cdCount; i++)
+			if (join_cue(g_cds[i], joined, sizeof joined))
+				milstr_ncpy(g_cds[i], joined, MAX_PATH);
+		g_insertedCd = g_cdCount > 0 ? 0 : -1;
 	}
+	if (!g_cdCount) return;
 	for (i = 0; i < 4; i++)
 		if (np2cfg.idetype[i] == SXSIDEV_CDROM) {
-			sxsi_devopen((REG8)i, g_cdPath);
 			g_cdUnit = i;
 			break;
 		}
+	/* a change pending at a reset is dropped with the machine's events */
+	cdchange_flag = 0;
+	if (g_insertedCd >= 0) cd_open(g_cds[g_insertedCd]);
 #endif	/* the 286 machine has no CD-ROM drive */
+}
+
+static void cd_step(int delta)
+{
+	if (g_cdUnit < 0 || g_cdCount < 1) return;
+	g_pendingCd = (g_pendingCd + delta + g_cdCount) % g_cdCount;
+}
+
+static void cd_swap(void)
+{
+#if defined(SUPPORT_IDEIO)
+	if (g_cdUnit < 0 || g_pendingCd < 0 || g_pendingCd >= g_cdCount || g_pendingCd == g_insertedCd) return;
+	g_insertedCd = g_pendingCd;
+	cd_open(g_cds[g_insertedCd]);
+#endif
+}
+
+static void cd_eject(void)
+{
+#if defined(SUPPORT_IDEIO)
+	if (g_cdUnit < 0 || g_insertedCd < 0) return;
+	g_insertedCd = -1;
+	/* a disc still on its way in never arrives */
+	if (cdchange_flag) {
+		nevent_reset(NEVENT_CDWAIT);
+		cdchange_flag = 0;
+	}
+	sxsi_devopen((REG8)g_cdUnit, NULL);
+	ideio_mediachange((REG8)g_cdUnit);
+#endif
 }
 
 /* ------------------------------------------------------------ the ABI */
@@ -718,6 +803,10 @@ static void apply_input(void)
 		case NP2BTN_RESET:     if (rose(i)) machine_reset(); break;
 		case NP2BTN_FDD1_EJECT: if (rose(i)) floppy_eject(0); break;
 		case NP2BTN_FDD2_EJECT: if (rose(i)) floppy_eject(1); break;
+		case NP2BTN_CD_PREV:    if (rose(i)) cd_step(-1); break;
+		case NP2BTN_CD_NEXT:    if (rose(i)) cd_step(+1); break;
+		case NP2BTN_CD_SWAP:    if (rose(i)) cd_swap(); break;
+		case NP2BTN_CD_EJECT:   if (rose(i)) cd_eject(); break;
 		}
 	}
 	chimera_mouse_buttons(mleft, mright);
@@ -838,13 +927,15 @@ ECL_EXPORT int32_t GetMemoryDomainHidden(int32_t i)
  * Next move the selector and Swap puts the selected one in (apply_input). All of it is guest
  * memory, so a rewind takes it back. */
 enum { DRIVE_FDD, DRIVE_SXSI };
-#define DRIVE_MAX 8
+#define DRIVE_MAX 12
 static struct { const char *name; int kind, unit; } g_drives[DRIVE_MAX];
 static int g_driveCount;
 
 void chimera_drive_access(int kind, int unit)
 {
-	if (kind >= 0 && kind < 2 && unit >= 0 && unit < 4)
+	/* NP2kai numbers a SCSI device 0x20 up (fdd/sxsi.h SXSIDRV_SCSI) */
+	if (kind == 1 && (unit & 0x20)) unit = 4 + (unit & 0x03);
+	if (kind >= 0 && kind < 2 && unit >= 0 && unit < 8)
 		g_accessed[kind][unit] = 1;
 }
 
@@ -861,11 +952,13 @@ static void add_drive(const char *name, int kind, int unit)
 static void list_drives(void)
 {
 	static const char *const hdd[] = { "Hard Disk 1", "Hard Disk 2" };
+	static const char *const scsi[] = { "SCSI Disk 0", "SCSI Disk 1", "SCSI Disk 2", "SCSI Disk 3" };
 	int i;
 	g_driveCount = 0;
 	if (g_floppyCount > 0) add_drive("Floppy 1", DRIVE_FDD, 0);
 	if (g_floppyCount > 1) add_drive("Floppy 2", DRIVE_FDD, 1);
 	for (i = 0; i < g_hddCount; i++) add_drive(hdd[i], DRIVE_SXSI, g_hddUnit[i]);
+	for (i = 0; i < g_scsiCount && i < 4; i++) add_drive(scsi[i], DRIVE_SXSI, 4 + i);
 	if (g_cdUnit >= 0) add_drive("CD-ROM", DRIVE_SXSI, g_cdUnit);
 }
 
@@ -882,22 +975,28 @@ ECL_EXPORT int32_t GetDriveLight(int32_t i)
 }
 
 static int is_floppy_drive(int32_t i) { return i >= 0 && i < g_driveCount && g_drives[i].kind == DRIVE_FDD; }
+static int is_cd_drive(int32_t i) { return i >= 0 && i < g_driveCount && g_drives[i].kind == DRIVE_SXSI && g_drives[i].unit == g_cdUnit; }
 
-ECL_EXPORT int32_t GetDriveMediaCount(int32_t i) { return is_floppy_drive(i) ? g_floppyCount : 0; }
+ECL_EXPORT int32_t GetDriveMediaCount(int32_t i)
+{
+	return is_floppy_drive(i) ? g_floppyCount : is_cd_drive(i) ? g_cdCount : 0;
+}
 
 ECL_EXPORT const char *GetDriveMediaName(int32_t i, int32_t n)
 {
-	return is_floppy_drive(i) && n >= 0 && n < g_floppyCount ? g_floppies[n] : NULL;
+	if (is_floppy_drive(i)) return n >= 0 && n < g_floppyCount ? g_floppies[n] : NULL;
+	if (is_cd_drive(i)) return n >= 0 && n < g_cdCount ? g_cdNames[n] : NULL;
+	return NULL;
 }
 
 ECL_EXPORT int32_t GetDriveMediaSelected(int32_t i)
 {
-	return is_floppy_drive(i) ? g_pendingFloppy[g_drives[i].unit] : 0;
+	return is_floppy_drive(i) ? g_pendingFloppy[g_drives[i].unit] : is_cd_drive(i) ? g_pendingCd : 0;
 }
 
 ECL_EXPORT int32_t GetDriveMediaInserted(int32_t i)
 {
-	return is_floppy_drive(i) ? g_insertedFloppy[g_drives[i].unit] : -1;
+	return is_floppy_drive(i) ? g_insertedFloppy[g_drives[i].unit] : is_cd_drive(i) ? g_insertedCd : -1;
 }
 
 /* ------------------------------------------------------------ registers

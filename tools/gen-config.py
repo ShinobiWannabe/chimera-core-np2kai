@@ -53,31 +53,69 @@ for h in headers:
     assert 1 <= len(h) <= 8 and h == h.strip(), 'bad header %r' % h
 
 # ---- mnemonics: the one character each button writes into a movie -------
-# A key whose cap is one character writes that character, except the two a
-# movie cannot hold ('.' and '|'). The rest are spelled out here; a button
-# with neither stops the build.
+# Chimera allows one printable ASCII character, never '.' or '|': 92 of them
+# for more buttons than that, so some must share (owner, 2026-10-31: as few
+# as can, and only buttons that do the same thing). Each letter and digit
+# key writes itself; a key's shifted character on a PC-98 keyboard, or a
+# lower-case letter of its name, stands for the rest. TWINS lists the only
+# buttons allowed to share, and the build stops on any other pair.
 MNEMONICS = {
-    'Key STOP': 'S', 'Key COPY': 'C', 'Key f.10': '0',
-    'Key vf.1': '1', 'Key vf.2': '2', 'Key vf.3': '3', 'Key vf.4': '4', 'Key vf.5': '5',
-    'Key ESC': 'e', 'Key Yen': '\\', 'Key BS': 'b',
-    'Key ROLL UP': 'u', 'Key ROLL DOWN': 'd', 'Key HOME CLR': 'h', 'Key HELP': '?',
-    'Key Pad Minus': '-', 'Key Pad Slash': '/', 'Key TAB': 't', 'Key RETURN': 'r',
-    'Key INS': 'i', 'Key DEL': 'x', 'Key Pad Asterisk': '*', 'Key CTRL': 'c',
-    'Key Up': '^', 'Key Pad Plus': '+', 'Key SHIFT': 's', 'Key Period': 'p',
-    'Key Right SHIFT': 's', 'Key Left': '<', 'Key Right': '>', 'Key Pad Equals': '=',
-    'Key CAPS': 'C', 'Key KANA': 'k', 'Key GRPH': 'g', 'Key NFER': 'n',
-    'Key SPACE': '_', 'Key XFER': 'X', 'Key Down': 'v', 'Key Pad Comma': ',',
-    'Key Pad Period': 'p',
-    'Mouse Left Button': 'l', 'Mouse Right Button': 'r',
-    'Joystick Up': 'U', 'Joystick Down': 'D', 'Joystick Left': 'L', 'Joystick Right': 'R',
-    'Joystick Button 1': '1', 'Joystick Button 2': '2',
-    'Drive 1 Previous Floppy Disk': '<', 'Drive 1 Next Floppy Disk': '>',
-    'Drive 1 Swap Floppy Disk': 'v',
-    'Drive 2 Previous Floppy Disk': '{', 'Drive 2 Next Floppy Disk': '}',
-    'Drive 2 Swap Floppy Disk': 'w',
-    'Reset': 'R',
-    'Drive 1 Eject Floppy Disk': 'E', 'Drive 2 Eject Floppy Disk': 'F',
+    # row 1: f.1-f.9 are Shift and 1-9 on a PC-98 keyboard; vf.N shares f.N
+    'Key STOP': 'o', 'Key COPY': 'p',
+    'Key f.1': '!', 'Key f.2': '"', 'Key f.3': '#', 'Key f.4': '$', 'Key f.5': '%',
+    'Key f.6': '&', 'Key f.7': "'", 'Key f.8': '(', 'Key f.9': ')', 'Key f.10': '~',
+    'Key vf.1': '!', 'Key vf.2': '"', 'Key vf.3': '#', 'Key vf.4': '$', 'Key vf.5': '%',
+    # row 2
+    'Key ESC': 'e', 'Key Minus': '-', 'Key Caret': '^', 'Key Yen': '\\', 'Key BS': 'b',
+    'Key ROLL UP': 'u', 'Key ROLL DOWN': 'y', 'Key HOME CLR': 'h', 'Key HELP': '?',
+    # row 3
+    'Key TAB': 't', 'Key At': '@', 'Key Left Bracket': '[', 'Key RETURN': 'r',
+    'Key INS': 'i', 'Key DEL': 'd',
+    # row 4
+    'Key CTRL': 'c', 'Key Semicolon': ';', 'Key Colon': ':', 'Key Right Bracket': ']',
+    # row 5
+    'Key SHIFT': 's', 'Key Comma': ',', 'Key Period': '`', 'Key Slash': '/',
+    'Key Underscore': '_', 'Key Right SHIFT': 's',
+    # row 6
+    'Key CAPS': 'a', 'Key KANA': 'k', 'Key GRPH': 'g', 'Key NFER': 'n',
+    'Key SPACE': 'w', 'Key XFER': 'x',
+    # the arrows; the joystick's directions share them
+    'Key Up': '{', 'Key Down': '}', 'Key Left': '<', 'Key Right': '>',
+    'Joystick Up': '{', 'Joystick Down': '}', 'Joystick Left': '<', 'Joystick Right': '>',
+    # the number pad: each key shares the main key it types
+    'Key Pad Minus': '-', 'Key Pad Slash': '/', 'Key Pad Asterisk': '*',
+    'Key Pad Plus': '+', 'Key Pad Equals': '=', 'Key Pad Comma': ',', 'Key Pad Period': '`',
+    # the mouse buttons; the joystick's two buttons share them
+    'Mouse Left Button': 'l', 'Mouse Right Button': 'm',
+    'Joystick Button 1': 'l', 'Joystick Button 2': 'm',
+    # the drives: the same action shares one character in every drive
+    'Drive 1 Previous Floppy Disk': 'q', 'Drive 2 Previous Floppy Disk': 'q', 'CD Previous Disc': 'q',
+    'Drive 1 Next Floppy Disk': 'j', 'Drive 2 Next Floppy Disk': 'j', 'CD Next Disc': 'j',
+    'Drive 1 Swap Floppy Disk': 'v', 'Drive 2 Swap Floppy Disk': 'v', 'CD Swap Disc': 'v',
+    'Drive 1 Eject Floppy Disk': 'z', 'Drive 2 Eject Floppy Disk': 'z', 'CD Eject Disc': 'z',
+    'Reset': 'f',
 }
+for _d in '0123456789':
+    MNEMONICS['Key %s' % _d] = MNEMONICS['Key Pad %s' % _d] = _d
+for _c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+    MNEMONICS['Key %s' % _c] = _c
+
+# The buttons that may share a character: a group's buttons do one thing.
+TWINS = [
+    ['Key f.%d' % n, 'Key vf.%d' % n] for n in range(1, 6)
+] + [
+    ['Key %s' % d, 'Key Pad %s' % d] for d in '0123456789'
+] + [
+    ['Key Minus', 'Key Pad Minus'], ['Key Slash', 'Key Pad Slash'],
+    ['Key Comma', 'Key Pad Comma'], ['Key Period', 'Key Pad Period'],
+    ['Key SHIFT', 'Key Right SHIFT'],
+    ['Key Up', 'Joystick Up'], ['Key Down', 'Joystick Down'],
+    ['Key Left', 'Joystick Left'], ['Key Right', 'Joystick Right'],
+    ['Mouse Left Button', 'Joystick Button 1'], ['Mouse Right Button', 'Joystick Button 2'],
+] + [
+    ['Drive 1 %s Floppy Disk' % a, 'Drive 2 %s Floppy Disk' % a, 'CD %s Disc' % a]
+    for a in ('Previous', 'Next', 'Swap', 'Eject')
+]
 
 
 def bare(name):
@@ -90,18 +128,19 @@ def mnemonic(name, header):
     for key in (name, bare(name)):
         if key in MNEMONICS:
             return key, MNEMONICS[key]
-    if len(header) == 1 and header not in '.|':
-        return name, header
-    if name.startswith('Key Pad ') and len(header) == 2:
-        return name, header[1]
-    if name.startswith('Key f.'):
-        return name, header[1:]
     raise SystemExit('no mnemonic for the button %r (MNEMONICS in %s)' % (name, __file__))
 
 
 mnemonics = dict(mnemonic(n, h) for n, h, _ in BUTTONS)
 for k, v in mnemonics.items():
     assert len(v) == 1 and 32 < ord(v) < 127 and v not in '.|', (k, v)
+sharing = {}
+for k, v in mnemonics.items():
+    sharing.setdefault(v, []).append(k)
+for v, ks in sharing.items():
+    if len(ks) > 1:
+        assert any(set(ks) <= set(g) for g in TWINS), 'unrelated buttons share %r: %s' % (v, ks)
+assert set(MNEMONICS) == set(mnemonics), set(MNEMONICS) ^ set(mnemonics)
 
 AXES = [
     {"name": "Mouse X", "min": -180, "max": 180, "neutral": 0, "header": "MX"},
@@ -163,7 +202,17 @@ SETTINGS = [
             "The CPU runs at the base clock times this number. The default "
             "of 20 gives 49.152 MHz. A higher number makes the CPU faster "
             "and the emulator slower. " + MACHINE,
-            "enum", "20", options=CLOCK_MULTIPLIERS),
+            "enum", "20", options=CLOCK_MULTIPLIERS, when=IA32),
+    # the 286 machine is for old software, which can time itself by the
+    # CPU: it starts at a real PC-9801VX's 10 MHz (2.4576 MHz x4), not at
+    # NP2kai's 49 MHz (owner, 2026-10-31)
+    setting("clockMultiplier", "CPU Clock Multiplier",
+            "The CPU runs at the base clock times this number. The default "
+            "of 4 gives 9.8304 MHz, the speed of a real PC-9801VX (the 8 MHz "
+            "models are 4 with the 1.9968 MHz base clock, the 12 MHz ones 5). "
+            "Old software that times itself by the CPU runs too fast when it "
+            "is higher. " + MACHINE,
+            "enum", "4", options=CLOCK_MULTIPLIERS, when=I286),
     setting("extraMemoryMB", "Extended Memory (MB)",
             "Memory above the first megabyte, in MB. The default is 13. "
             "Some programs refuse to start with too little, and a few old "
@@ -220,9 +269,12 @@ SETTINGS = [
             "empty a drive at any time.",
             "enum", FLOPPIES_AT_START[0], options=FLOPPIES_AT_START),
     setting("startTime", "Start Time",
-            "The date and time on the machine's calendar clock when it is "
-            "switched on, in UTC. The clock then runs with the emulated time, "
-            "not with the time on your computer. " + MACHINE,
+            "The date and time the machine's calendar clock shows when it is "
+            "switched on, exactly as written here. Chimera keeps every date "
+            "in UTC, but a PC-98's clock has no time zone: it holds the local "
+            "time it was set to, so write the time you want the machine to "
+            "show, with no conversion. The clock then runs with the emulated "
+            "time, not with the time on your computer. " + MACHINE,
             "datetime", 788918400),
     setting("fontFile", "Font File",
             "Which file holds the PC-98's characters: FONT.ROM, a dump of the "
@@ -328,12 +380,13 @@ VSYNC = rate(MONITORS[0])
 
 # The files that start this core when opened with no project. .ima is left
 # out: the DOSBox-X and PCem cores claim it for IBM PC floppies (the floppy
-# slot still takes it).
+# slot still takes it). So is .hdd, a raw hard disk to the DOSBox-X core (the
+# SCSI slot still takes it).
 EXTENSIONS = {e: MACHINES[0][0] for e in (
     ".d88", ".88d", ".d98", ".98d", ".fdi", ".hdm", ".xdf", ".dup", ".2hd",
     ".tfd", ".nfd", ".dcp", ".dcu", ".fdd", ".hd4", ".hd5", ".hd9", ".h01",
     ".hdb", ".ddb", ".dd6", ".dd9", ".flp", ".fim", ".dip",
-    ".hdi", ".nhd", ".thd", ".vhd")}
+    ".hdi", ".nhd", ".thd", ".vhd", ".slh", ".hdn", ".hds")}
 
 CONFIG = {
     "coreName": "NP2kai",

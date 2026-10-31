@@ -851,7 +851,7 @@ not used. Known so far:
 |---|---|
 | Model | PC-9801VX (`"VX"`) |
 | Base clock | 2.4576 MHz (`PCBASECLOCK25`) |
-| Clock multiplier | 20 (49.152 MHz) (`PCBASEMULTIPLE`); a list of every number from 1 to 70 (owner, 2026-10-31; was 1 and the even numbers, 2026-10-24) |
+| Clock multiplier | 20 (49.152 MHz) (`PCBASEMULTIPLE`) on PC9821; 4 (9.8304 MHz, a real PC-9801VX) on PC98 (owner, 2026-10-31); a list of every number from 1 to 70 (owner, 2026-10-31; was 1 and the even numbers, 2026-10-24) |
 | Extended RAM | 13 MB (`EXTMEM`, also the `ini.c` default) |
 | Sound board | PC-9801-86 (`SOUND_SW` 0x04) |
 | Sample rate | 44100 Hz (output only) |
@@ -863,8 +863,9 @@ not used. Known so far:
 UNCHECKED, read before the settings are written: the FM engine default
 (`usefmgen`) in the SDL build, the WAB, PCI and PEGC defaults, and whether
 the SDL build changes any of these at start-up. The IA-32 and 286 machines
-both start from these values; the multiplier gives the 286 machine a speed no
-real 286 had, which is upstream's default and is kept.
+both start from these values, except the multiplier: upstream's 20 gave the
+286 machine a speed no real 286 had, so the 286 machine starts at 4 (owner,
+2026-10-31).
 ---
 
 ## 10. Which CPU: both, as two machines of one package
@@ -1333,6 +1334,9 @@ Each entry gives the issue, what happened, and what this core does about it.
   Popful Mail's three disks test it.
 - **#281, #286 (two discs).** Users want more than one disc in a project.
   **For this core:** the CD slot takes several images, swapped like floppies.
+  Built 2026-10-31 (it had been left out): CD Previous, Next, Swap and Eject
+  Disc inputs; Swap goes through NP2kai's own change, so the guest sees the
+  drive not ready for 6 emulated seconds and then the new disc.
 - **#351, #362 (open: X68000 hard disk crashes).** A hard disk image ended
   up being read as a floppy and the machine stopped with "Unable to identify
   image file format". **For this core:** each slot hands its files only to
@@ -1534,3 +1538,18 @@ Each entry gives the issue, what happened, and what this core does about it.
   IDE BIOS is in use. New gate leg: a generated hard disk boots with it.
   Burning Dragon Plus's own HDI boot code is refused by the real BIOS (error
   40h, as real hardware would by its code); boot that game from MS-DOS.
+- 2026-10-31: the owner reviewed decisions made without them
+  (project files decisions-review/) and asked for five changes. The PC98
+  machine's CPU Clock Multiplier defaults to 4 (9.8304 MHz, a real
+  PC-9801VX); PC9821 keeps 20. Start Time says the clock shows exactly the
+  time written, with no time zone. Mnemonics: 126 buttons and 92 allowed
+  characters, so some must share; now only buttons that do the same thing
+  share one (a key and its keypad twin, f.N and vf.N, the arrows and the
+  joystick, the mouse and joystick buttons, the same action in each drive),
+  and gen-config.py stops on any other pair. The CD slot takes any number of
+  discs, with CD Previous, Next, Swap and Eject Disc inputs after all the
+  others. Hard disks: SL9821 .slh in the hdd slot, and a new scsi slot (up
+  to 4: Virtual98 .hdd, RaSCSI .hdn and .hds, .hdi, .nhd, .vhd) on a
+  PC-9801-55 board with NP2kai's own SCSI BIOS: the only real SCSI BIOS dump
+  at hand (8 KiB, sha1 3D7166F0...) stops at D200:2000 and boots nothing, so
+  scsi.rom is not firmware.

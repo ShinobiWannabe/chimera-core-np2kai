@@ -24,7 +24,8 @@ enum {
 	NP2BTN_FDD1_PREV, NP2BTN_FDD1_NEXT, NP2BTN_FDD1_SWAP,
 	NP2BTN_FDD2_PREV, NP2BTN_FDD2_NEXT, NP2BTN_FDD2_SWAP,
 	NP2BTN_RESET,
-	NP2BTN_FDD1_EJECT, NP2BTN_FDD2_EJECT
+	NP2BTN_FDD1_EJECT, NP2BTN_FDD2_EJECT,
+	NP2BTN_CD_PREV, NP2BTN_CD_NEXT, NP2BTN_CD_SWAP, NP2BTN_CD_EJECT
 };
 
 typedef struct {
@@ -101,7 +102,13 @@ typedef struct {
 	X("Reset", "Reset", NP2BTN_RESET) \
 	/* after Reset, so the columns of older movies keep their places */ \
 	X("Drive 1 Eject Floppy Disk", "D1Eject", NP2BTN_FDD1_EJECT) \
-	X("Drive 2 Eject Floppy Disk", "D2Eject", NP2BTN_FDD2_EJECT)
+	X("Drive 2 Eject Floppy Disk", "D2Eject", NP2BTN_FDD2_EJECT) \
+	/* the CD-ROM drive (the PC9821 machine's), last again for the same \
+	 * reason */ \
+	X("CD Previous Disc", "CDPrev", NP2BTN_CD_PREV) \
+	X("CD Next Disc", "CDNext", NP2BTN_CD_NEXT) \
+	X("CD Swap Disc", "CDSwap", NP2BTN_CD_SWAP) \
+	X("CD Eject Disc", "CDEject", NP2BTN_CD_EJECT)
 
 /* The axes: the bus mouse's movement since the last frame. */
 #define NP2_AXIS_MOUSE_X 0

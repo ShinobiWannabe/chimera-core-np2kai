@@ -305,11 +305,13 @@ PY
 	# Chimera's engine gives SetInputPollCallback before Init (session.cpp),
 	# when the entry has not picked a half yet; run-wbx does the same with
 	# NP2_POLLS. The counter disk asks INT 18h for a key every frame once it
-	# has booted, so the callback runs on either machine.
+	# has booted, so the callback runs on either machine. The PC98 machine
+	# runs 1500 frames: at its default 9.8 MHz the memory check holds the
+	# boot past frame 1000.
 	dp=$(folder polls); python3 "$root/tests/gen-testdisk.py" --counter "$dp/c.hdm"; echo '{"floppy":["c.hdm"]}' > "$dp/slots"
 	p21=$(NP2_POLLS=1 "$runwbx" "$wbx" "$dp" 600 2>/dev/null | sed -n 's/^POLLS //p')
 	to286 "$dp"
-	p286=$(NP2_POLLS=1 "$runwbx" "$wbx" "$dp" 600 2>/dev/null | sed -n 's/^POLLS //p')
+	p286=$(NP2_POLLS=1 "$runwbx" "$wbx" "$dp" 1500 2>/dev/null | sed -n 's/^POLLS //p')
 	if [ "${p21:-0}" -gt 0 ] && [ "${p286:-0}" -gt 0 ]; then ok "input polls: the callback given before Init runs on both machines ($p21 and $p286 calls)"
 	else bad "input polls: PC9821 '$p21', PC98 '$p286' calls"; fi
 
@@ -371,6 +373,53 @@ PY
 	if [ "$s1" = "MEDIA -1 0 SELECTED 0 0 " ] && [ "$s2" = "MEDIA 0 -1 SELECTED 0 0 " ]; then
 		ok "floppies: a trade into an empty drive leaves the other's selector on a disk, and its Swap takes the disk back"
 	else bad "floppies: swap into an empty drive: '$s1' then '$s2'"; fi
+
+	# ---- leg: several CDs, swapped and ejected -------------------------------
+	# Two CDs and the counter floppy on the PC9821 machine: the first CD is in
+	# at power-on; CD Next and CD Swap put the second in (NP2kai takes the
+	# first out and the second in 6 emulated seconds later), Eject empties
+	# the drive, and Reset keeps the disc that was in. The drives are floppy
+	# 1 and the CD-ROM drive. Native and sandbox must agree on a run that
+	# swaps. The control presses nothing.
+	dc=$(folder cds); cp "$dp/c.hdm" "$dc/c.hdm"
+	python3 "$root/tests/gen-cds.py" "$dc"
+	echo '{"floppy":["c.hdm"],"cdrom":["one.iso","two.iso"]}' > "$dc/slots"
+	c0=$(NP2_MEDIA=1 "$runwbx" "$wbx" "$dc" 200 2>/dev/null | grep '^MEDIA')
+	c1=$(NP2_MEDIA=1 NP2_PRESS="100:CD Next Disc:4,120:CD Swap Disc:4" "$runwbx" "$wbx" "$dc" 200 2>/dev/null | grep '^MEDIA\|^SELECTED' | tr '\n' ' ')
+	c2=$(NP2_MEDIA=1 NP2_PRESS="100:CD Eject Disc:4" "$runwbx" "$wbx" "$dc" 200 2>/dev/null | grep '^MEDIA')
+	c3=$(NP2_MEDIA=1 NP2_PRESS="100:CD Next Disc:4,120:CD Swap Disc:4,150:Reset:4" "$runwbx" "$wbx" "$dc" 200 2>/dev/null | grep '^MEDIA')
+	if [ "$c0" = "MEDIA 0 0" ] && [ "$c1" = "MEDIA 0 1 SELECTED 0 1 " ] && [ "$c2" = "MEDIA 0 -1" ] && [ "$c3" = "MEDIA 0 1" ]; then
+		ok "CDs: the first is in at power-on, Next and Swap put the second in, Eject empties the drive, Reset keeps the disc"
+	else bad "CDs: control '$c0', swap '$c1', eject '$c2', reset '$c3'"; fi
+	compare cd-swap "$dc" NP2_PRESS="100:CD Next Disc:4,120:CD Swap Disc:4,700:CD Eject Disc:4,900:CD Swap Disc:4"
+
+	# ---- leg: SL9821 and SCSI hard disks boot ------------------------------
+	# The hard disk counter in SL9821's .slh (the hdd slot) and in every
+	# format the scsi slot takes, on the PC9821 machine and the .hds on the
+	# PC98 one: each must boot and count frames, as the .nhd does. A SCSI
+	# disk boots through NP2kai's own SCSI BIOS on the PC-9801-55 board the
+	# machine gets with it. The control is the .hds with an empty first
+	# sector, which boots nothing.
+	dz=$(folder hdformats-src); python3 "$root/tests/gen-testdisk.py" --hdd "$dz/c.nhd"
+	python3 "$root/tests/gen-hdformats.py" "$dz/c.nhd" "$dz"
+	hf_bad=""
+	for t in hdd:slh scsi:hdd scsi:hdn scsi:hds scsi:nhd 286:hds; do
+		sl=${t%%:*}; e=${t#*:}; dt=$(folder hd-$sl-$e)
+		if [ "$e" = nhd ]; then cp "$dz/c.nhd" "$dt/disk.nhd"; else cp "$dz/disk.$e" "$dt/"; fi
+		if [ "$sl" = 286 ]; then echo "{\"scsi\":[\"disk.$e\"]}" > "$dt/slots"; to286 "$dt"
+		else echo "{\"$sl\":[\"disk.$e\"]}" > "$dt/slots"; fi
+		"$runwbx" "$wbx" "$dt" "$frames" /dev/null "$work/hd-$sl-$e.mem" > /dev/null 2>&1
+		hf=$(hdd_frames "$work/hd-$sl-$e.mem")
+		[ "${hf:-0}" -gt 0 ] || hf_bad="$hf_bad $sl:$e"
+	done
+	dn=$(folder hd-scsi-noboot); python3 "$root/tests/gen-testdisk.py" --hdd --no-boot "$dn/c.nhd"
+	python3 "$root/tests/gen-hdformats.py" "$dn/c.nhd" "$dn"; echo '{"scsi":["disk.hds"]}' > "$dn/slots"
+	"$runwbx" "$wbx" "$dn" "$frames" /dev/null "$work/hd-scsi-noboot.mem" > /dev/null 2>&1
+	hn=$(hdd_frames "$work/hd-scsi-noboot.mem")
+	if [ -z "$hf_bad" ] && [ "${hn:-1}" -eq 0 ]; then
+		ok "hard disks: .slh boots on IDE, .hdd .hdn .hds .nhd boot on SCSI (and .hds on the 286); the control boots nothing"
+	else bad "hard disks: did not boot:$hf_bad; control counted '$hn'"; fi
+	compare scsi-boot "$work/run-hd-scsi-hds"
 
 	# ---- leg: Reset does not move the clock ---------------------------------
 	# Reset puts the CPU's 32-bit clock count back to zero. Pressed when the
@@ -463,9 +512,9 @@ import json, os, sys
 d = sys.argv[1]
 kinds = {"floppy": ("d88", "88d", "d98", "98d", "fdi", "hdm", "xdf", "dup", "2hd", "tfd", "nfd", "dcp", "dcu",
                     "fdd", "hd4", "hd5", "hd9", "h01", "hdb", "ddb", "dd6", "dd9", "flp", "fim", "dip", "ima"),
-         "hdd": ("hdi", "nhd", "thd", "vhd"), "cdrom": ("cue", "iso")}
+         "hdd": ("hdi", "nhd", "thd", "vhd", "slh"), "scsi": ("hdd", "hdn", "hds"), "cdrom": ("cue", "iso")}
 slots = {k: sorted(f for f in os.listdir(d) if f.lower().rsplit(".", 1)[-1] in exts) for k, exts in kinds.items()}
-slots["hdd"] = slots["hdd"][:2]; slots["cdrom"] = slots["cdrom"][:1]
+slots["hdd"] = slots["hdd"][:2]; slots["scsi"] = slots["scsi"][:4]
 json.dump({k: v for k, v in slots.items() if v}, open(os.path.join(d, "slots"), "w"))
 PY
 				compare "game-$name" "$dg"

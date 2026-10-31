@@ -45,20 +45,36 @@
         "hdi",
         "nhd",
         "thd",
+        "vhd",
+        "slh"
+      ],
+      "help": "Hard disk images (.hdi, .nhd, .thd, .vhd or SL9821's .slh). The first is the first hard disk (IDE on the PC9821 machine, SASI on the PC98 one), the one the machine starts from when no floppy is in drive 1. What the machine writes stays for the session and can be exported as save data, and an exported image can be given here to continue from it."
+    },
+    {
+      "id": "scsi",
+      "title": "SCSI hard disks",
+      "min": 0,
+      "max": 4,
+      "formats": [
+        "hdd",
+        "hdn",
+        "hds",
+        "hdi",
+        "nhd",
         "vhd"
       ],
-      "help": "Hard disk images (.hdi, .nhd, .thd or .vhd). The first is the first hard disk (IDE on the PC9821 machine, SASI on the PC98 one), the one the machine starts from when no floppy is in drive 1. What the machine writes stays for the session and can be exported as save data, and an exported image can be given here to continue from it."
+      "help": "Hard disks on a PC-9801-55 SCSI board, which the machine gets when this list has a disk: Virtual98 .hdd, RaSCSI .hdn and .hds, or .hdi, .nhd and .vhd. The first is SCSI ID 0, the next ID 1 and so on. The machine starts from the first SCSI disk when no floppy is in a drive and there is no IDE or SASI hard disk. What the machine writes stays for the session and can be exported as save data."
     },
     {
       "id": "cdrom",
-      "title": "CD-ROM",
+      "title": "CD-ROMs",
       "min": 0,
-      "max": 1,
+      "max": -1,
       "formats": [
         "cue",
         "iso"
       ],
-      "help": "A CD-ROM image for the IDE CD-ROM drive, which only the PC9821 machine has: a .cue sheet with its track files (one .bin for the whole disc or one per track), or an .iso. A CloneCD .ccd can be converted to .cue and .bin first. A PC-98 cannot start from a CD, so a CD game also needs its boot floppy or a hard disk with its driver.",
+      "help": "CD-ROM images for the IDE CD-ROM drive, which only the PC9821 machine has: a .cue sheet with its track files (one .bin for the whole disc or one per track), or an .iso. The first is in the drive when the machine starts; the CD Previous, Next, Swap and Eject Disc inputs change it, in the order listed here. A CloneCD .ccd can be converted to .cue and .bin first. A PC-98 cannot start from a CD, so a CD game also needs its boot floppy or a hard disk with its driver.",
       "exposedWhen": {
         "setting": "machine",
         "is": "PC9821"
@@ -69,6 +85,7 @@
     [
       "floppy",
       "hdd",
+      "scsi",
       "cdrom"
     ]
   ]
