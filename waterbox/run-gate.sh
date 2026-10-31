@@ -424,6 +424,34 @@ PY
 	if unit_test calendar; then ok "calendar: $(tail -1 "$work/calendar/out.txt")"
 	else bad "calendar: $(tail -3 "$work/calendar/out.txt" "$work/calendar/build.log" 2>/dev/null)"; fi
 
+	# ---- leg: the floppy layouts beyond the first ones ----------------------
+	# tests/gen-formats.py writes one image of each (.fdd, the BKDSK names,
+	# .flp, .fim, .dip, .ima), every sector saying where it is, the first
+	# one the counter, and a control of each, one byte short or with a
+	# broken header. tests/floppy-formats.c reads every sector back through
+	# NP2kai, and the controls must be refused. Then each image must start
+	# the counter in the sandbox under its own name, and its control must not.
+	python3 "$root/tests/gen-formats.py" "$work/floppy-formats"
+	if unit_test floppy-formats; then ok "floppy formats: $(tail -1 "$work/floppy-formats/out.txt")"
+	else bad "floppy formats: $(tail -4 "$work/floppy-formats/out.txt" "$work/floppy-formats/build.log" 2>/dev/null)"; fi
+	counted() {	# counted <memory dump> -> the counter's frames, or "none" if it did not start
+		python3 -c "import sys; m = open(sys.argv[1], 'rb').read(); i = m.find(b'CHIMERA NP2KAI COUNTER')
+print(int.from_bytes(m[i - 6:i - 4], 'little') if i >= 0 else 'none')" "$1" 2>/dev/null || echo none
+	}
+	booted=""; wrong=""
+	for img in "$work"/floppy-formats/test.*; do
+		e=${img##*.}; dz=$(folder "format-$e")
+		cp "$img" "$dz/disk.$e"; echo "{\"floppy\":[\"disk.$e\"]}" > "$dz/slots"
+		"$runwbx" "$wbx" "$dz" 600 /dev/null "$work/format.mem" > /dev/null 2>&1; a=$(counted "$work/format.mem")
+		cp "$work/floppy-formats/short.$e" "$dz/disk.$e"
+		"$runwbx" "$wbx" "$dz" 600 /dev/null "$work/format.mem" > /dev/null 2>&1; c=$(counted "$work/format.mem")
+		if [ "$a" != none ] && [ "$a" -gt 0 ] && [ "$c" = none ]; then booted="$booted .$e"
+		else wrong="$wrong .$e($a/$c)"; fi
+		rm -f "$work/format.mem"
+	done
+	if [ -z "$wrong" ] && [ -n "$booted" ]; then ok "floppy formats: each starts the counter in the sandbox ($booted); no control does"
+	else bad "floppy formats: did not start, or the control did:$wrong"; fi
+
 	# ---- leg: the user's games, local only ----------------------------------
 	if [ -n "${NP2_GAMES:-}" ] && [ -d "${NP2_GAMES:-}" ]; then
 		for g in "$NP2_GAMES"/*/; do
@@ -433,7 +461,8 @@ PY
 			[ -f "$dg/slots" ] || python3 - "$dg" <<'PY'
 import json, os, sys
 d = sys.argv[1]
-kinds = {"floppy": ("d88", "88d", "d98", "98d", "fdi", "hdm", "xdf", "dup", "2hd", "tfd", "nfd", "dcp", "dcu"),
+kinds = {"floppy": ("d88", "88d", "d98", "98d", "fdi", "hdm", "xdf", "dup", "2hd", "tfd", "nfd", "dcp", "dcu",
+                    "fdd", "hd4", "hd5", "hd9", "h01", "hdb", "ddb", "dd6", "dd9", "flp", "fim", "dip", "ima"),
          "hdd": ("hdi", "nhd", "thd", "vhd"), "cdrom": ("cue", "iso")}
 slots = {k: sorted(f for f in os.listdir(d) if f.lower().rsplit(".", 1)[-1] in exts) for k, exts in kinds.items()}
 slots["hdd"] = slots["hdd"][:2]; slots["cdrom"] = slots["cdrom"][:1]

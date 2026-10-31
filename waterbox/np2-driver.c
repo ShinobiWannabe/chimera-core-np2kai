@@ -275,7 +275,8 @@ static void frame_rate(void)
  * (file_slots.json), and NP2kai tells the image's format by it too. */
 static const char *bare_slot(char *name)
 {
-	static const char *const floppy[] = { "d88", "88d", "d98", "98d", "fdi", "hdm", "xdf", "dup", "2hd", "tfd", "nfd", "dcp", "dcu", NULL };
+	static const char *const floppy[] = { "d88", "88d", "d98", "98d", "fdi", "hdm", "xdf", "dup", "2hd", "tfd", "nfd", "dcp", "dcu",
+		"fdd", "hd4", "hd5", "hd9", "h01", "hdb", "ddb", "dd6", "dd9", "flp", "fim", "dip", "ima", NULL };
 	static const char *const hdd[] = { "hdi", "nhd", "thd", "vhd", NULL };
 	static const char *const cdrom[] = { "cue", "iso", NULL };
 	static const struct { const char *id; const char *const *ext; } kinds[] = {

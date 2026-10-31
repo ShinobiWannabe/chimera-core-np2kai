@@ -19,9 +19,22 @@
         "tfd",
         "nfd",
         "dcp",
-        "dcu"
+        "dcu",
+        "fdd",
+        "hd4",
+        "hd5",
+        "hd9",
+        "h01",
+        "hdb",
+        "ddb",
+        "dd6",
+        "dd9",
+        "flp",
+        "fim",
+        "dip",
+        "ima"
       ],
-      "help": "Floppy disk images (.d88, .fdi, .hdm, .nfd, .dcp and the other PC-98 formats). The first is in drive 1 and the second in drive 2 when the machine starts. The order here is the order the Previous, Next and Swap Floppy Disk inputs go through. What the machine writes to a disk stays for the session and can be exported as save data."
+      "help": "Floppy disk images (.d88, .fdi, .hdm, .nfd, .dcp, .fdd, .hd4 and the other PC-98 formats). The first is in drive 1 and the second in drive 2 when the machine starts. The order here is the order the Previous, Next and Swap Floppy Disk inputs go through. What the machine writes to a disk stays for the session and can be exported as save data."
     },
     {
       "id": "hdd",

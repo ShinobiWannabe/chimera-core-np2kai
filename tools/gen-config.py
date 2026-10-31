@@ -326,9 +326,14 @@ def rate(monitor, base=2457600):
 
 VSYNC = rate(MONITORS[0])
 
+# The files that start this core when opened with no project. .ima is left
+# out: the DOSBox-X and PCem cores claim it for IBM PC floppies (the floppy
+# slot still takes it).
 EXTENSIONS = {e: MACHINES[0][0] for e in (
     ".d88", ".88d", ".d98", ".98d", ".fdi", ".hdm", ".xdf", ".dup", ".2hd",
-    ".tfd", ".nfd", ".dcp", ".dcu", ".hdi", ".nhd", ".thd", ".vhd")}
+    ".tfd", ".nfd", ".dcp", ".dcu", ".fdd", ".hd4", ".hd5", ".hd9", ".h01",
+    ".hdb", ".ddb", ".dd6", ".dd9", ".flp", ".fim", ".dip",
+    ".hdi", ".nhd", ".thd", ".vhd")}
 
 CONFIG = {
     "coreName": "NP2kai",

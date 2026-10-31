@@ -53,6 +53,7 @@ DROP_EXACT = {
     'sound/tms3631c.c',        # built through waterbox/port/tms3631-pitch.c
     'cbus/boardlol.c',         # built through waterbox/port/boardlol-fixed.c
     'sound/opna.c',            # built through waterbox/port/opna-fmgen-caps.c
+    'diskimage/fd/fdd_bkdsk.c',  # built through waterbox/port/bkdsk-hdb.c
     # NP21/W rev105/rev106 fixes, fixed copies in waterbox/port/
     'i386c/ia32/instructions/fpu/fpemul_softfloat3.cpp',  # fpu-softfloat3-np21w.cpp
     'sound/adpcmc.c',          # adpcmc-np21w.c

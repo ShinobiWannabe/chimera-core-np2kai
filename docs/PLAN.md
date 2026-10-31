@@ -223,6 +223,17 @@ Floppy disks:
 | BKDSK (BASIC disks, `.hdb` and similar) | yes | no | no |
 | Raw images (`.xdf`, `.hdm`, `.dup`, `.2hd`, `.tfd`, `.hd4`, `.hd5`, `.hd9`, `.fdd`, `.h01`, `.ddb`, `.dd6`, `.flp`, `.fim`, `.bin`, `.img`, `.ima`) | yes, typed by size | raw images, typed by size | `.img`, `.ima`, `.xdf`, `.hdm` |
 
+The floppy slot took `.d88` `.88d` `.d98` `.98d` `.fdi` `.hdm` `.xdf` `.dup`
+`.2hd` `.tfd` `.nfd` `.dcp` `.dcu` at first. Added 2026-10-29 (owner): `.fdd`
+(Virtual98's VFDD, a sector image with its own header, not a raw one),
+`.hd4` `.hd5` `.hd9` `.h01` `.hdb` `.ddb` `.dd6` `.dd9` (BKDSK), `.flp`,
+`.fim`, `.dip` and `.ima`, each tested by the gate's floppy formats leg
+(tests/gen-formats.py, tests/floppy-formats.c). `.hdb`'s first track (26 FM
+sectors of 128 bytes) did not read upstream; waterbox/port/bkdsk-hdb.c
+reads it, including through NP2kai's INT 1Bh (any density). Left out:
+`.img` and `.bin`, names CD images use too. `.ima` is in the floppy slot
+but not in the config's `extensions`: the DOSBox-X and PCem cores claim it.
+
 Hard disks:
 
 | Format | NP2kai | Upstream DOSBox-X | Chimera DOSBox-X core |
