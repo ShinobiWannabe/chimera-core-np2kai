@@ -8,6 +8,7 @@
 #define CHIMERA_PORT_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,6 +61,11 @@ int64_t chimera_vfs_blocks_held(int i);
 void chimera_vfs_alias(const char *name, const char *mount);
 int chimera_vfs_join(const char *path, const char *const *parts, int n);
 int chimera_vfs_text(const char *path, const char *text);
+/* the host's mount for path (a firmware id, the alias, or the file's own
+ * name), opened for reading */
+FILE *chimera_vfs_mount_open(const char *path);
+/* a read-only file whose bytes make() gives when they are read */
+int chimera_vfs_virtual(const char *path, uint64_t size, void (*make)(void *ctx, uint64_t off, uint8_t *dst, unsigned len), void *ctx);
 /* the mount of the firmware file `path` names, compared in small letters
  * (np2-firmware.h), or NULL when it names none */
 const char *chimera_firmware_name(const char *path);

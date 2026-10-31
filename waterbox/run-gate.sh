@@ -577,6 +577,29 @@ print(int.from_bytes(m[i - 6:i - 4], 'little') if i >= 0 else 'none')" "$1" 2>/d
 	if [ -z "$wrong" ] && [ -n "$booted" ]; then ok "floppy formats: each starts the counter in the sandbox ($booted); no control does"
 	else bad "floppy formats: did not start, or the control did:$wrong"; fi
 
+	# ---- leg: CDs in MAME's CHD format --------------------------------------
+	# tests/gen-chd-src.py writes a three-track raw CD (MODE1 with EDC and
+	# ECC, audio with its pregap in the image, audio with a PREGAP line) and
+	# a 2048-byte ISO; chdman makes CHDs of them with each kind of CD codec,
+	# and a CHD that is not a CD. tests/chd-cd.c reads each back through
+	# NP2kai: the image it was made from, byte for byte, the same tracks and
+	# sectors; the controls (not a CD, cut short) refused. Then the CHD is
+	# the CD of a run with the counter floppy, swapped and ejected, and
+	# native and sandbox must agree. chdman is MAME's (apt mame-tools); the
+	# leg is skipped without it.
+	if command -v chdman > /dev/null 2>&1; then
+		dh=$work/chd-cd; mkdir -p "$dh"; python3 "$root/tests/gen-chd-src.py" "$dh"
+		( cd "$dh" && chdman createcd -f -i mixed.cue -o mixed-lz.chd && chdman createcd -f -c cdzs,cdfl -i mixed.cue -o mixed-zs.chd &&
+		  chdman createcd -f -c none -i mixed.cue -o mixed-none.chd && chdman createcd -f -i data.iso -o iso.chd &&
+		  chdman createraw -f -i data.iso -o raw.chd -hs 4096 -us 512 &&
+		  head -c $(( $(wc -c < mixed-lz.chd) / 2 )) mixed-lz.chd > cut.chd ) > "$dh/chdman.log" 2>&1
+		if unit_test chd-cd; then ok "CHD: $(tail -1 "$work/chd-cd/out.txt")"
+		else bad "CHD: $(tail -4 "$work/chd-cd/out.txt" "$work/chd-cd/build.log" "$dh/chdman.log" 2>/dev/null)"; fi
+		dq=$(folder chd-run); cp "$dp/c.hdm" "$dq/c.hdm"; cp "$dh/mixed-lz.chd" "$dh/iso.chd" "$dq/"
+		echo '{"floppy":["c.hdm"],"cdrom":["mixed-lz.chd","iso.chd"]}' > "$dq/slots"
+		compare chd-run "$dq" NP2_PRESS="100:CD Next Disc:4,120:CD Swap Disc:4,700:CD Eject Disc:4,900:CD Swap Disc:4"
+	else skip "CHD: no chdman (MAME's, apt mame-tools) to make the test CHDs"; fi
+
 	# ---- leg: the user's games, local only ----------------------------------
 	if [ -n "${NP2_GAMES:-}" ] && [ -d "${NP2_GAMES:-}" ]; then
 		for g in "$NP2_GAMES"/*/; do
@@ -588,7 +611,7 @@ import json, os, sys
 d = sys.argv[1]
 kinds = {"floppy": ("d88", "88d", "d98", "98d", "fdi", "hdm", "xdf", "dup", "2hd", "tfd", "nfd", "dcp", "dcu",
                     "fdd", "hd4", "hd5", "hd9", "h01", "hdb", "ddb", "dd6", "dd9", "flp", "fim", "dip", "ima"),
-         "hdd": ("hdi", "nhd", "thd", "vhd", "slh"), "scsi": ("hdd", "hdn", "hds"), "cdrom": ("cue", "iso")}
+         "hdd": ("hdi", "nhd", "thd", "vhd", "slh"), "scsi": ("hdd", "hdn", "hds"), "cdrom": ("cue", "iso", "chd")}
 slots = {k: sorted(f for f in os.listdir(d) if f.lower().rsplit(".", 1)[-1] in exts) for k, exts in kinds.items()}
 slots["hdd"] = slots["hdd"][:2]; slots["scsi"] = slots["scsi"][:4]
 json.dump({k: v for k, v in slots.items() if v}, open(os.path.join(d, "slots"), "w"))

@@ -48,6 +48,7 @@
 #endif
 
 #include "port/chimera-port.h"
+#include "port/chd-cd.h"
 #include "np2-driver.h"
 #include "np2-input.h"
 #include "np2-settings.h"
@@ -348,7 +349,7 @@ static const char *bare_slot(char *name)
 	static const char *const hdd[] = { "hdi", "nhd", "thd", "vhd", "slh", NULL };
 	/* the formats only a SCSI disk can be (.hdd is Virtual98's SCSI image) */
 	static const char *const scsi[] = { "hdd", "hdn", "hds", NULL };
-	static const char *const cdrom[] = { "cue", "iso", NULL };
+	static const char *const cdrom[] = { "cue", "iso", "chd", NULL };
 	static const struct { const char *id; const char *const *ext; } kinds[] = {
 		{ "floppy", floppy }, { "hdd", hdd }, { "scsi", scsi }, { "cdrom", cdrom } };
 	const char *ext;
@@ -552,7 +553,8 @@ static void attach_removable(void)
 
 /* Every CD of the project (file_slots.json has no limit), as the paths
  * NP2kai opens: a cue sheet with a file a track becomes its joined sheet,
- * made once (the file layer keeps it). The CD-ROM drive works like a floppy
+ * and a CHD the sheet and raw image it is read as (port/chd-cd.c), made
+ * once (the file layer keeps them). The CD-ROM drive works like a floppy
  * drive: Previous and Next move a selector, Swap puts the selected disc in
  * and Eject takes it out. The first CD is in the drive at power-on. */
 static char (*g_cds)[MAX_PATH], (*g_cdNames)[MAX_PATH];
@@ -592,7 +594,7 @@ static void attach_cdrom(void)
 		/* the drive's media list shows the names the project gave */
 		if (g_cdCount) memcpy(g_cdNames, g_cds, (size_t)g_cdCount * MAX_PATH);
 		for (i = 0; i < g_cdCount; i++)
-			if (join_cue(g_cds[i], joined, sizeof joined))
+			if (join_cue(g_cds[i], joined, sizeof joined) || chimera_chd_cue(g_cds[i], joined, sizeof joined))
 				milstr_ncpy(g_cds[i], joined, MAX_PATH);
 		g_insertedCd = g_cdCount > 0 ? 0 : -1;
 	}

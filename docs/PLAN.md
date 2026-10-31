@@ -257,7 +257,7 @@ CD-ROMs (PC-9821 machine only):
 | CD Manipulator (`.cdm`) | yes | no | no |
 | Alcohol (`.mds`) | yes | `.mdf` only | no |
 | Nero (`.nrg`) | yes | no | no |
-| CHD (`.chd`) | no | yes | no |
+| CHD (`.chd`) | no (this core: yes, through libchdr) | yes | no |
 
 So the formats this core adds over the Chimera DOSBox-X core are the D88
 aliases, DCU, VFDD, BKDSK, the many raw floppy names, the T98, T98-Next,
@@ -1374,6 +1374,20 @@ Each entry gives the issue, what happened, and what this core does about it.
   into one read-only disc before opening it (`join_cue` in `np2-driver.c`,
   `chimera_vfs_join` in `port/dosio.c`; nothing is copied). Policenauts
   and Brandish 2 Renewal both run from their multi-bin cues.
+- **MAME CHD discs (.chd) — added (owner asked, 2026-10-31).** NP2kai has
+  no CHD reader of its own (the libretro-common copy of libchdr in
+  `sdl/libretro` has its LZMA, Deflate and FLAC decoders left out, and no CD
+  driver calls it). The core reads a CHD with libchdr (extern/libchdr,
+  BSD-3-Clause, with the LZMA SDK, miniz, zstd's decoder and dr_flac, all
+  permissive: licence build A holds) and shows it to NP2kai as the cue sheet
+  and raw image it was made from (`port/chd-cd.c`): a sheet of one FILE, and
+  a file of the file layer whose 2352-byte sectors are decoded from the
+  CHD's hunks when read (`chimera_vfs_virtual` in `port/dosio.c`), audio
+  turned back to little-endian, the padding between tracks left out, a
+  pregap in the image as INDEX 00 and one that is not as PREGAP. Cooked
+  data tracks (MODE1 2048, MODE2 2336) are made whole: sync, header, and
+  EDC and ECC for MODE1. MODE2 Form 1/2/mix tracks, CHDs with a parent and
+  CHDs that are not CDs are refused. Gate leg "CHD" (needs chdman).
 
 ### Firmware
 
@@ -1590,3 +1604,9 @@ Each entry gives the issue, what happened, and what this core does about it.
   unchanged. A savestate format
   number was looked at and is not needed (section 18, #115). New gate legs:
   machine settings, volumes, 15 kHz monitor, System Bus.
+
+- 2026-10-31: the CD slot takes MAME's `.chd` (chdman createcd; every CD
+  codec: CD LZMA, Deflate, FLAC and Zstandard, or none). libchdr is a new
+  submodule, extern/libchdr, built with its own flags (np2-flags.sh). A
+  CHD reads back as the bin/cue it was made from, byte for byte (gate leg
+  "CHD", tests/chd-cd.c and tests/gen-chd-src.py).

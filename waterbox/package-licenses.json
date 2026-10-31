@@ -2,7 +2,7 @@
   "package": "np2kai",
   "effectiveTerms": "MIT, BSD-2-Clause, BSD-3-Clause, the Berkeley SoftFloat terms and the fmgen terms, together",
   "commercialUse": "prohibited without the prior consent of fmgen's author (cisc)",
-  "note": "The built core combines this repository's MIT integration with Neko Project II kai and the parts it compiles in. No GPL part is compiled (licence build A, docs/PLAN.md section 2): the OPL chips come from ymfm, the FPU is SoftFloat, and neither the DOSBox FPU nor the Trident card is built. fmgen's terms allow free modification and distribution if the origin is named, the result stays free software, changes are stated and its text is kept unchanged; putting it into commercial software (shareware included) needs its author's prior consent. The source of each part is linked below by exact commit.",
+  "note": "The built core combines this repository's MIT integration with Neko Project II kai and the parts it compiles in. No GPL part is compiled (licence build A, docs/PLAN.md section 2): the OPL chips come from ymfm, the FPU is SoftFloat, and neither the DOSBox FPU nor the Trident card is built. CHD CD images are read with libchdr (BSD-3-Clause) and its decoders: the LZMA SDK (public domain), miniz (MIT), Zstandard (taken under BSD-3-Clause) and dr_flac (public domain or MIT-0). fmgen's terms allow free modification and distribution if the origin is named, the result stays free software, changes are stated and its text is kept unchanged; putting it into commercial software (shareware included) needs its author's prior consent. The source of each part is linked below by exact commit.",
   "components": [
     {
       "name": "chimera-core-np2kai (integration)",
@@ -127,6 +127,49 @@
       "commit": "{submodule:extern/NP2kai}",
       "file": "extern/NP2kai/LICENSES/LICENSE-LIO.TXT",
       "sourceUrl": "https://github.com/AZO234/NP2kai/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "libchdr (MAME's CHD reader, for .chd CDs)",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/rtissera/libchdr",
+      "commit": "{submodule:extern/libchdr}",
+      "file": "extern/libchdr/LICENSE.txt",
+      "sourceUrl": "https://github.com/rtissera/libchdr/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "LZMA SDK (libchdr deps/lzma-26.02)",
+      "license": "Public domain",
+      "url": "https://github.com/rtissera/libchdr",
+      "commit": "{submodule:extern/libchdr}",
+      "file": "extern/libchdr/deps/lzma-26.02/LICENSE",
+      "sourceUrl": "https://github.com/rtissera/libchdr/archive/{commit}.tar.gz"
+    },
+    {
+      "name": "miniz (libchdr deps/miniz-3.1.2)",
+      "license": "MIT",
+      "url": "https://github.com/rtissera/libchdr",
+      "commit": "{submodule:extern/libchdr}",
+      "file": "waterbox/licenses/miniz-3.1.2-LICENSE",
+      "sourceUrl": "https://github.com/rtissera/libchdr/archive/{commit}.tar.gz",
+      "note": "The licence text is the one at the top of deps/miniz-3.1.2/miniz.c."
+    },
+    {
+      "name": "Zstandard decoder (libchdr deps/zstd-1.5.7)",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/rtissera/libchdr",
+      "commit": "{submodule:extern/libchdr}",
+      "file": "waterbox/licenses/zstd-1.5.7-LICENSE",
+      "sourceUrl": "https://github.com/rtissera/libchdr/archive/{commit}.tar.gz",
+      "note": "Zstandard is offered under BSD-3-Clause or GPL-2.0; this package takes BSD-3-Clause. The text is zstd v1.5.7's LICENSE file."
+    },
+    {
+      "name": "dr_flac (libchdr include/dr_libs/dr_flac.h)",
+      "license": "Unlicense OR MIT-0",
+      "url": "https://github.com/rtissera/libchdr",
+      "commit": "{submodule:extern/libchdr}",
+      "file": "waterbox/licenses/dr_flac-LICENSE",
+      "sourceUrl": "https://github.com/rtissera/libchdr/archive/{commit}.tar.gz",
+      "note": "The licence text is the statement at the end of dr_flac.h."
     }
   ]
 }

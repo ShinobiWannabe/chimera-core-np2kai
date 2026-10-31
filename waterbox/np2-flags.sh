@@ -59,11 +59,25 @@ NP2_ZEROINIT="-ftrivial-auto-var-init=zero"
 NP2_CFLAGS="$NP2_CFLAGS $NP2_ZEROINIT"
 NP2_CXXFLAGS="$NP2_CXXFLAGS $NP2_ZEROINIT"
 
+# libchdr (extern/libchdr, BSD-3-Clause; its deps/ are LZMA SDK, public
+# domain; miniz, MIT; zstd's decoder, BSD-3-Clause; dr_flac, public domain):
+# MAME's CHD reader, for CD images in .chd (waterbox/port/chd-cd.c). It is
+# built from its own unity.c (and the A/V codec, which unity.c leaves out
+# but the codec table names) with its own flags, not NP2kai's: none of
+# NP2kai's defines or include folders reach it. ZSTD_DISABLE_ASM keeps the
+# zstd decoder to C (its assembler file is not part of unity.c).
+# LIBCHDR_DIR=dir builds it from another checkout.
+LIBCHDR=${LIBCHDR_DIR:-$NP2/../libchdr}
+LIBCHDR_FLAGS="-I$LIBCHDR/include -I$LIBCHDR/deps/lzma-26.02/include -I$LIBCHDR/deps/miniz-3.1.2 \
+ -I$LIBCHDR/deps/zstd-1.5.7 -DZSTD_DISABLE_ASM -DWANT_RAW_DATA_SECTOR=1 -DWANT_SUBCODE=1 -DVERIFY_BLOCK_CRC=1"
+[ -f "$LIBCHDR/unity.c" ] || { echo "no libchdr at $LIBCHDR (git submodule update --init extern/libchdr)" >&2; exit 1; }
+
 # Per-file flags. fdd/sxsi.c builds its own GetTickCount() on gettimeofday()
 # and times a CD change with it (sxsi.c:29,306,344), so in that file the host
 # clock is swapped for the emulated one (waterbox/port/platform.c).
 np2_file_flags() {
   case "$1" in
     */fdd/sxsi.c) echo "-Dgettimeofday=chimera_gettimeofday" ;;
+    */port/chd-cd.c) echo "-I$LIBCHDR/include" ;;
   esac
 }

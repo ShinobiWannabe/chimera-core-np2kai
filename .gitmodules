@@ -1,3 +1,6 @@
 [submodule "extern/NP2kai"]
 	path = extern/NP2kai
 	url = https://github.com/AZO234/NP2kai
+[submodule "extern/libchdr"]
+	path = extern/libchdr
+	url = https://github.com/rtissera/libchdr

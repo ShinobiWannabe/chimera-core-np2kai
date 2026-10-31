@@ -37,6 +37,9 @@ typedef struct vnode {
 	FILE **part;	/* a joined seed: these files end to end (chimera_vfs_join) */
 	UINT64 *partend;	/* where each part ends in the node */
 	int nparts;
+	/* a made seed: its bytes come from this function (chimera_vfs_virtual) */
+	void (*make)(void *ctx, uint64_t off, uint8_t *dst, unsigned len);
+	void *makectx;
 	UINT64 size;
 	UINT8 **blocks;
 	UINT64 nblocks;	/* entries in blocks[] */
@@ -175,7 +178,14 @@ static int node_reserve(VNODE *n, UINT64 size)
 static void seed_read(VNODE *n, UINT64 off, UINT8 *dst, UINT len)
 {
 	UINT got = 0;
-	if (n->nparts) {
+	if (n->make) {
+		if (off < n->seedsize) {
+			UINT64 avail = n->seedsize - off;
+			got = (avail < len) ? (UINT)avail : len;
+			n->make(n->makectx, off, dst, got);
+		}
+	}
+	else if (n->nparts) {
 		int p = 0;
 		while (got < len && off + got < n->seedsize) {
 			UINT64 at = off + got, start, avail;
@@ -272,16 +282,22 @@ void chimera_vfs_alias(const char *name, const char *mount)
 	milstr_ncpy(s_aliasMount, mount, sizeof s_aliasMount);
 }
 
+/* The mounted file a path names, opened for reading, or NULL. */
+FILE *chimera_vfs_mount_open(const char *path)
+{
+	const char *fw = chimera_firmware_name(path);
+	FILE *f = fopen(fw ? fw : mount_name(path), "rb");
+	if (!f && s_aliasName[0] && !strcmp(file_getname(path), s_aliasName))
+		f = fopen(s_aliasMount, "rb");
+	return f;
+}
+
 static VNODE *node_open(const char *path)
 {
 	VNODE *n = node_find(path);
-	const char *fw;
 	FILE *f;
 	if (n) return n->deleted ? NULL : n;
-	fw = chimera_firmware_name(path);
-	f = fopen(fw ? fw : mount_name(path), "rb");
-	if (!f && s_aliasName[0] && !strcmp(file_getname(path), s_aliasName))
-		f = fopen(s_aliasMount, "rb");
+	f = chimera_vfs_mount_open(path);
 	if (!f) return NULL;
 	n = node_new(path);
 	if (!n) { fclose(f); return NULL; }
@@ -315,6 +331,21 @@ int chimera_vfs_join(const char *path, const char *const *parts, int n)
 	}
 	v->nparts = n;
 	v->seedsize = v->size = end;
+	return 1;
+}
+
+/* A read-only file of size bytes that no mount holds: its bytes are made
+ * by make(ctx, ...) when read (a CHD's sectors as a raw image, chd-cd.c).
+ * make must give the same bytes for the same offset every time. */
+int chimera_vfs_virtual(const char *path, uint64_t size, void (*make)(void *ctx, uint64_t off, uint8_t *dst, unsigned len), void *ctx)
+{
+	VNODE *v;
+	if (!make || node_find(path)) return 0;
+	v = node_new(path);
+	if (!v) return 0;
+	v->make = make;
+	v->makectx = ctx;
+	v->seedsize = v->size = size;
 	return 1;
 }
 

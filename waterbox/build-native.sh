@@ -20,7 +20,7 @@ obj=$out/obj
 mkdir -p "$obj"
 
 SOURCES=$(python3 "$root/tools/sources.py" "$NP2" "$FLAVOUR" | sed "s|^|$NP2/|")
-SOURCES="$SOURCES $(ls "$PORT"/*.c "$PORT"/*.cpp 2>/dev/null) $here/np2-driver.c $here/run-native.c"
+SOURCES="$SOURCES $(ls "$PORT"/*.c "$PORT"/*.cpp 2>/dev/null) $here/np2-driver.c $here/run-native.c $LIBCHDR/unity.c $LIBCHDR/src/libchdr_codec_avhuff.c"
 
 # The guest kit's headers (settings, slots, ECL_EXPORT) work natively too.
 COMMON="-O2 -g -fno-strict-aliasing $NP2_DEFINES $NP2_INCLUDES -I$MB/extern/emulibc -I$MB/source/guest/include -I$MB/extern/jsmn"
@@ -32,6 +32,7 @@ for s in $SOURCES; do
   objs="$objs $o"
   if [ ! -f "$o" ] || [ "$s" -nt "$o" ] || [ "$here/np2-flags.sh" -nt "$o" ] || [ "$PORT/chimera-port.h" -nt "$o" ] || { { [ "${s%/*}" = "$here" ] || [ "${s%/*}" = "$PORT" ]; } && [ -n "$(find "$here" "$PORT" -maxdepth 1 -name '*.h' -newer "$o" -print -quit)" ]; }; then
     case "$s" in
+      "$LIBCHDR/unity.c"|"$LIBCHDR/src/libchdr_codec_avhuff.c") gcc -O2 -g $LIBCHDR_FLAGS $NP2_ZEROINIT -w -c "$s" -o "$o" 2>>"$out/errors.log" || { echo "FAILED: libchdr"; fail=1; } ;;
       *.cpp) g++ $COMMON $NP2_CXXFLAGS $(np2_file_flags "$s") -w -c "$s" -o "$o" 2>>"$out/errors.log" || { echo "FAILED: $rel"; fail=1; } ;;
       *)     gcc $COMMON $NP2_CFLAGS $(np2_file_flags "$s") $([ "$s" = "$here/np2-driver.c" ] && echo "${NP2_EXTRA:-}") -w -c "$s" -o "$o" 2>>"$out/errors.log" || { echo "FAILED: $rel"; fail=1; } ;;
     esac

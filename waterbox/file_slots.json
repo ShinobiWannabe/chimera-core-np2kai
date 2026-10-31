@@ -72,9 +72,10 @@
       "max": -1,
       "formats": [
         "cue",
-        "iso"
+        "iso",
+        "chd"
       ],
-      "help": "CD-ROM images for the IDE CD-ROM drive, which only the PC9821 machine has: a .cue sheet with its track files (one .bin for the whole disc or one per track), or an .iso. The first is in the drive when the machine starts; the CD Previous, Next, Swap and Eject Disc inputs change it, in the order listed here. A CloneCD .ccd can be converted to .cue and .bin first. A PC-98 cannot start from a CD, so a CD game also needs its boot floppy or a hard disk with its driver.",
+      "help": "CD-ROM images for the IDE CD-ROM drive, which only the PC9821 machine has: a .cue sheet with its track files (one .bin for the whole disc or one per track), an .iso, or a MAME .chd (made with chdman createcd). The first is in the drive when the machine starts; the CD Previous, Next, Swap and Eject Disc inputs change it, in the order listed here. A CloneCD .ccd can be converted to .cue and .bin first. A PC-98 cannot start from a CD, so a CD game also needs its boot floppy or a hard disk with its driver.",
       "exposedWhen": {
         "setting": "machine",
         "is": "PC9821"
