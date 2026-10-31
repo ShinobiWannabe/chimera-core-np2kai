@@ -358,6 +358,35 @@ PY
 		ok "floppies: None and Drive 1 only start drives empty, Swap fills one, Eject empties drive 1 (control: both full)"
 	else bad "floppies at start: '$e1' '$e2' '$e3', eject '$e4', control '$e5'"; fi
 
+	# ---- leg: Swap into an empty drive, and back ----------------------------
+	# Two floppies, Drive 1 only: drive 2 selects disk 0 (in drive 1) and
+	# swaps, so the drives trade and drive 1 is left empty. Its selector must
+	# still be on a disk, not on none: drive 1's Swap then takes disk 0 back
+	# (before, the selector was -1 and that Swap read a name from outside the
+	# floppy list). The control stops before drive 1's Swap.
+	ds=$(folder swap-empty); cp "$dp/c.hdm" "$ds/a.hdm"; cp "$dp/c.hdm" "$ds/b.hdm"
+	echo '{"floppy":["a.hdm","b.hdm"]}' > "$ds/slots"; echo '{"extraMemoryMB":0,"floppiesAtStart":"Drive 1 only"}' > "$ds/settings"
+	s1=$(NP2_MEDIA=1 NP2_PRESS="100:Drive 2 Previous Floppy Disk:4,120:Drive 2 Swap Floppy Disk:4" "$runwbx" "$wbx" "$ds" 200 2>/dev/null | grep '^MEDIA\|^SELECTED' | tr '\n' ' ')
+	s2=$(NP2_MEDIA=1 NP2_PRESS="100:Drive 2 Previous Floppy Disk:4,120:Drive 2 Swap Floppy Disk:4,160:Drive 1 Swap Floppy Disk:4" "$runwbx" "$wbx" "$ds" 200 2>/dev/null | grep '^MEDIA\|^SELECTED' | tr '\n' ' ')
+	if [ "$s1" = "MEDIA -1 0 SELECTED 0 0 " ] && [ "$s2" = "MEDIA 0 -1 SELECTED 0 0 " ]; then
+		ok "floppies: a trade into an empty drive leaves the other's selector on a disk, and its Swap takes the disk back"
+	else bad "floppies: swap into an empty drive: '$s1' then '$s2'"; fi
+
+	# ---- leg: Reset does not move the clock ---------------------------------
+	# Reset puts the CPU's 32-bit clock count back to zero. Pressed when the
+	# count is past 2^31 (about 53 s in), the step it makes must not be read
+	# as time: the frame with the reset takes about as long as any other
+	# (before, it took 34 s). The same run in both builds; the control is
+	# the frame before.
+	dr=$(folder reset-clock); cp "$dp/c.hdm" "$dr/c.hdm"; echo '{"floppy":["c.hdm"]}' > "$dr/slots"
+	NP2_PRESS="3000:Reset:2" "$native" "$dr" 3005 2>/dev/null | lines > "$work/reset-clock.n"
+	NP2_PRESS="3000:Reset:2" "$runwbx" "$wbx" "$dr" 3005 2>/dev/null | lines > "$work/reset-clock.w"
+	steps=$(awk 'NR > 1 && ($1 == 2999 || $1 == 3000) { printf "%d ", $6 - p } { p = $6 }' "$work/reset-clock.n")
+	set -- $steps
+	if cmp -s "$work/reset-clock.n" "$work/reset-clock.w" && [ $# -eq 2 ] && [ "$2" -lt $(( $1 * 2 )) ] && [ "$2" -gt $(( $1 / 2 )) ]; then
+		ok "Reset: the frame with the reset takes $2 clocks, the one before $1; native and sandbox the same"
+	else bad "Reset: clock steps '$steps' around the reset, or the builds differ"; fi
+
 	# ---- leg: no limit on floppies ---------------------------------------
 	# Eighteen floppies: Previous from the first goes round to the last.
 	dm=$(folder many-floppies); list=
@@ -385,10 +414,13 @@ PY
 	if unit_test cue-join; then ok "cue sheets: $(tail -1 "$work/cue-join/out.txt")"
 	else bad "cue sheets: $(tail -3 "$work/cue-join/out.txt" "$work/cue-join/build.log" 2>/dev/null)"; fi
 
-	# ---- leg: the calendar past 49.7 days ----------------------------------
+	# ---- leg: the calendar and the clock ------------------------------------
 	# tests/calendar.c sets the driver's clock total to 50 and 5000 days of
 	# running; the calendar must read the start date plus that, not wrap as
-	# GETTICK's 32-bit milliseconds do.
+	# GETTICK's 32-bit milliseconds do. It runs a minute of 31 kHz frames,
+	# which must move the calendar a minute (not 75 s, a second for every
+	# 56.4 frames), and changes the CPU multiplier, which must not change
+	# the time already counted.
 	if unit_test calendar; then ok "calendar: $(tail -1 "$work/calendar/out.txt")"
 	else bad "calendar: $(tail -3 "$work/calendar/out.txt" "$work/calendar/build.log" 2>/dev/null)"; fi
 

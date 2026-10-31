@@ -248,13 +248,17 @@ int main(int argc, char **argv)
 		}
 		if (getenv("NP2_POLLS")) printf("POLLS %ld\n", g_polls);
 		if (getenv("NP2_MEDIA")) {
-			/* what each floppy drive holds, and the domains the tools hide */
+			/* what each floppy drive holds and its selector is on, and the
+			 * domains the tools hide */
 			i32ifn Inserted = (i32ifn)proc(h, "GetDriveMediaInserted");
+			i32ifn Selected = (i32ifn)proc(h, "GetDriveMediaSelected");
 			intfn DomCount = (intfn)proc(h, "GetMemoryDomainCount");
 			i32ifn Hidden = (i32ifn)proc(h, "GetMemoryDomainHidden");
 			int k;
 			printf("MEDIA");
 			for (k = 0; k < DriveCount(); k++) printf(" %d", Inserted(k));
+			printf("\nSELECTED");
+			for (k = 0; k < DriveCount(); k++) printf(" %d", Selected(k));
 			printf("\nHIDDEN");
 			for (k = 0; k < DomCount(); k++) printf(" %d", Hidden(k));
 			printf("\n");

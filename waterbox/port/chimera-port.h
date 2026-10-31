@@ -32,6 +32,12 @@ unsigned int chimera_gettick(void);
  * without GETTICK's 49.7-day wrap; the calendar reads it. */
 void chimera_uptime(int64_t *seconds, unsigned int *ms);
 
+/* np2-driver.c: pccore_reset is starting and has finished (platform.c's
+ * soundmng_stop and soundmng_play): no emulated time passes in between, and
+ * the CPU's clock count, put back to zero, is not read as a step. */
+void chimera_reset_begin(void);
+void chimera_reset_end(void);
+
 /* mousemng.c: motion and buttons for the next frame. */
 void chimera_mouse_move(int dx, int dy);
 void chimera_mouse_buttons(int left, int right);

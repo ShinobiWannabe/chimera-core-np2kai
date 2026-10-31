@@ -134,8 +134,8 @@ IA32 = [MACHINES[0][0]]
 ALWAYS = {"setting": "machine", "in": [m for m, _ in MACHINES]}
 I286 = [MACHINES[1][0]]
 
-# a list to pick from (owner, 2026-10-24): 1, then the even numbers to 70
-CLOCK_MULTIPLIERS = [str(n) for n in [1] + list(range(2, 71, 2))]
+# a list to pick from (owner, 2026-10-31): every number from 1 to 70
+CLOCK_MULTIPLIERS = [str(n) for n in range(1, 71)]
 
 SETTINGS = [
     setting("machine", "Machine",

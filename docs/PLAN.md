@@ -840,7 +840,7 @@ not used. Known so far:
 |---|---|
 | Model | PC-9801VX (`"VX"`) |
 | Base clock | 2.4576 MHz (`PCBASECLOCK25`) |
-| Clock multiplier | 20 (49.152 MHz) (`PCBASEMULTIPLE`); a list of 1 and the even numbers to 70 (owner, 2026-10-24) |
+| Clock multiplier | 20 (49.152 MHz) (`PCBASEMULTIPLE`); a list of every number from 1 to 70 (owner, 2026-10-31; was 1 and the even numbers, 2026-10-24) |
 | Extended RAM | 13 MB (`EXTMEM`, also the `ini.c` default) |
 | Sound board | PC-9801-86 (`SOUND_SW` 0x04) |
 | Sample rate | 44100 Hz (output only) |

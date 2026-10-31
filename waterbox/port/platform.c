@@ -41,8 +41,10 @@ UINT soundmng_create(UINT rate, UINT ms)
 }
 void soundmng_destroy(void) {}
 void soundmng_reset(void) {}
-void soundmng_play(void) {}
-void soundmng_stop(void) {}
+/* pccore_reset stops the sound first and starts it again last: the
+ * driver's clock marks the reset with them (np2-driver.c, the clock) */
+void soundmng_play(void) { chimera_reset_end(); }
+void soundmng_stop(void) { chimera_reset_begin(); }
 void soundmng_sync(void) {}
 void soundmng_setreverse(BOOL reverse) { (void)reverse; }
 BRESULT soundmng_pcmplay(UINT num, BOOL loop) { (void)num; (void)loop; return FAILURE; }

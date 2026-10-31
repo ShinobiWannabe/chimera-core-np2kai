@@ -71,11 +71,25 @@ static uint8_t *g_saveWindow;
  * Emulated milliseconds since power-on, from the CPU's own clock count.
  * CPU_CLOCK + CPU_BASECLOCK - CPU_REMCLOCK is the count NP2kai's sound uses
  * (sound.c); it is 32 bits and wraps every minute and a half at 49 MHz, so
- * each read adds what passed since the last one to a 64-bit total. A reset
- * puts the count back to zero, which reads here as a step backwards and adds
- * nothing. */
+ * each read adds what passed since the last one to a 64-bit total.
+ *
+ * A reset (the Reset input, or one the machine asks for) puts the count back
+ * to zero. That is no step at all, but the difference from the last read
+ * can look like one: half the time a jump forward of up to 2^31 clocks. So
+ * pccore_reset, which stops the sound first and starts it again last
+ * (port/platform.c soundmng_stop and soundmng_play), marks the reset: while
+ * it runs no time passes, and the count afterwards starts from where the
+ * reset left it.
+ *
+ * The milliseconds are added up as the clocks are, each step at the clock
+ * rate of its time, so a CPU multiplier the machine changes while running
+ * (np2sysp.c's cngclkmul) changes the speed of the time from then on and
+ * never what has already passed. */
 static uint64_t g_clocks;
 static UINT32 g_lastClock;
+static uint64_t g_ms;	/* milliseconds since power-on */
+static uint64_t g_msRem;	/* and clocks x 1000 short of the next one */
+static int g_inReset;
 
 #if defined(NP2DRV_HOST_CLOCK)
 /* The gate's negative control only: the host's clock, as libretro's
@@ -98,8 +112,7 @@ uint64_t np2drv_clocks(void);
 unsigned int chimera_gettick(void)
 {
 	np2drv_clocks();
-	if (!pccore.realclock) return 0;
-	return (unsigned int)(g_clocks * 1000u / pccore.realclock);
+	return (unsigned int)g_ms;
 }
 
 /* The same time for the calendar, whole: GETTICK's 32 bits wrap after 49.7
@@ -108,11 +121,8 @@ unsigned int chimera_gettick(void)
 void chimera_uptime(int64_t *seconds, unsigned int *ms)
 {
 	np2drv_clocks();
-	*seconds = 0;
-	*ms = 0;
-	if (!pccore.realclock) return;
-	*seconds = (int64_t)(g_clocks / pccore.realclock);
-	*ms = (unsigned int)(g_clocks % pccore.realclock * 1000u / pccore.realclock);
+	*seconds = (int64_t)(g_ms / 1000);
+	*ms = (unsigned int)(g_ms % 1000);
 }
 #endif
 
@@ -120,9 +130,30 @@ uint64_t np2drv_clocks(void)
 {
 	UINT32 now = CPU_CLOCK + CPU_BASECLOCK - CPU_REMCLOCK;
 	UINT32 step = now - g_lastClock;
-	if ((INT32)step > 0) g_clocks += step;
 	g_lastClock = now;
+	if (g_inReset || (INT32)step <= 0) return g_clocks;
+	g_clocks += step;
+	if (pccore.realclock) {
+		g_msRem += (uint64_t)step * 1000u;
+		g_ms += g_msRem / pccore.realclock;
+		g_msRem %= pccore.realclock;
+	}
 	return g_clocks;
+}
+
+/* pccore_reset's first and last steps (port/platform.c): the time up to the
+ * reset is counted, none passes during it, and the count restarts from
+ * where the reset put the CPU's clock. */
+void chimera_reset_begin(void)
+{
+	np2drv_clocks();
+	g_inReset = 1;
+}
+
+void chimera_reset_end(void)
+{
+	g_inReset = 0;
+	g_lastClock = CPU_CLOCK + CPU_BASECLOCK - CPU_REMCLOCK;
 }
 
 /* ------------------------------------------------------------ settings */
@@ -607,11 +638,15 @@ static void floppy_step(int drive, int delta)
 static void floppy_swap(int drive)
 {
 	int other = 1 - drive, disk = g_pendingFloppy[drive], cur = g_insertedFloppy[drive];
-	if (!floppy_drive_used(drive)) return;
+	if (!floppy_drive_used(drive) || disk < 0 || disk >= g_floppyCount) return;
 	g_insertedFloppy[drive] = disk;
 	diskdrv_setfdd((REG8)drive, g_floppies[disk], 0);
 	if (disk == g_insertedFloppy[other]) {
-		g_pendingFloppy[other] = g_insertedFloppy[other] = cur;
+		/* an empty drive gives the other nothing back: that drive is left
+		 * empty, and its selector stays where it was (a selector never
+		 * points at no disk) */
+		g_insertedFloppy[other] = cur;
+		if (cur >= 0) g_pendingFloppy[other] = cur;
 		diskdrv_setfdd((REG8)other, cur >= 0 ? g_floppies[cur] : NULL, 0);
 	}
 }
@@ -888,10 +923,10 @@ ECL_EXPORT const char *GetRegisterName(int32_t i)
 
 ECL_EXPORT int32_t GetRegisterBits(int32_t i)
 {
+	if (i < 0 || i >= REG_COUNT) return 0;
 #if defined(CPUCORE_IA32)
 	return i < 10 || i >= 16 ? 32 : 16;
 #else
-	(void)i;
 	return 16;
 #endif
 }
