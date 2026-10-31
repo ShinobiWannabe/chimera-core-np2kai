@@ -9,6 +9,10 @@
  * NP2_PRESS, NP2_MOUSE and NP2_SAVEDATA as in run-native.c.
  * NP2_NORENDER=a,b and NP2_REGS=1 as in run-native.c, and the same drive
  * lights at the end of each line.
+ * NP2_BUS=1 checks the System Bus against the memory domains at the end: its
+ * size, PeekBus and ReadBus against Main Memory and Extended Memory, and a
+ * PokeBus that lands in the domain (put back after), and prints "BUS ok" or
+ * "BUS BAD" with the first difference.
  * NP2_STATE_AT=n saves a state before frame n, runs to the end, loads it and
  * runs from n again: the second run's lines must equal the first's (a
  * line "STATE same" or "STATE DIFFER" at the end says which).
@@ -245,6 +249,48 @@ int main(int argc, char **argv)
 			printf("REGS");
 			for (k = 0; k < RegCount(); k++) printf(" %s=%llx", RegName(k), (unsigned long long)RegValue(k));
 			printf("\n");
+		}
+		if (getenv("NP2_BUS")) {
+			typedef int32_t (MB_GUEST_ABI *peekfn)(int32_t, int32_t);
+			typedef void (MB_GUEST_ABI *pokefn)(int32_t, int32_t, int32_t);
+			typedef uintptr_t (MB_GUEST_ABI *rbusfn)(int32_t, int64_t, int32_t);
+			intfn BusCount = (intfn)proc(h, "GetBusCount");
+			strifn BusName = (strifn)proc(h, "GetBusName");
+			i64i32fn BusSize = (i64i32fn)proc(h, "GetBusSize");
+			peekfn Peek = (peekfn)proc(h, "PeekBus");
+			pokefn Poke = (pokefn)proc(h, "PokeBus");
+			rbusfn ReadBus = (rbusfn)proc(h, "ReadBus");
+			ptrifn DomPtr = (ptrifn)proc(h, "GetMemoryDomainPtr");
+			i64ifn DomSize = (i64ifn)proc(h, "GetMemoryDomainSize");
+			const uint8_t *mainMem = (const uint8_t *)DomPtr(0), *ext = (const uint8_t *)DomPtr(1);
+			int64_t extSize = DomSize(1), size = BusSize(0), a, bad = -1;
+			const char *why = "";
+			if (BusCount() != 1 || strcmp(BusName(0), "System Bus") != 0) { bad = 0; why = "name"; }
+			else if (size != 0x100000 + extSize) { bad = size; why = "size"; }
+			for (a = 0; bad < 0 && a < size; a += 0x10000) {
+				const uint8_t *chunk = (const uint8_t *)ReadBus(0, a, 0x10000);
+				int64_t i;
+				for (i = 0; i < 0x10000 && a + i < size; i++) {
+					uint8_t want = a + i < 0x100000 ? mainMem[a + i] : ext[a + i - 0x100000];
+					if (chunk[i] != want) { bad = a + i; why = "ReadBus"; break; }
+					if ((i & 0xfff) == 0x123 && Peek(0, (int32_t)(a + i)) != want) { bad = a + i; why = "PeekBus"; break; }
+				}
+			}
+			if (bad < 0) {
+				int64_t at[2] = { 0x500, 0x100000 + extSize / 2 };
+				int k;
+				for (k = 0; k < 2 && bad < 0; k++) {
+					uint8_t *dom = at[k] < 0x100000 ? (uint8_t *)mainMem + at[k] : (uint8_t *)ext + at[k] - 0x100000;
+					uint8_t old = *dom;
+					if (at[k] >= size) continue;
+					Poke(0, (int32_t)at[k], old ^ 0x5a);
+					if (*dom != (uint8_t)(old ^ 0x5a)) { bad = at[k]; why = "PokeBus"; }
+					Poke(0, (int32_t)at[k], old);
+				}
+			}
+			if (bad < 0 && Peek(0, (int32_t)size) != 0) { bad = size; why = "past the end"; }
+			if (bad < 0) printf("BUS ok size=%lld\n", (long long)size);
+			else printf("BUS BAD %s at %llx\n", why, (unsigned long long)bad);
 		}
 		if (getenv("NP2_POLLS")) printf("POLLS %ld\n", g_polls);
 		if (getenv("NP2_MEDIA")) {

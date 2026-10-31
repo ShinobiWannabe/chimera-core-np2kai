@@ -66,13 +66,16 @@
  * section 4, user-decided). Each row is the mode as io/gdc.c times it
  * (gdc_updateclock): the clock of gdcclk[], and the line and frame lengths
  * its sync parameters give after gdcclk[]'s limits - 24 kHz from
- * defsyncm24, 31 kHz from bios18.c's gdcmastersync "31" and "31-480". A
+ * defsyncm24, 15 kHz from defsyncm15 (the first gdcclk[] row, which
+ * gdc_reset picks when DIP switch 1-1 is on, so the driver turns that
+ * switch on for 15khz and off for the others), 31 kHz from bios18.c's gdcmastersync "31" and "31-480". A
  * frame is then (baseclock * lines) / (clock / dots) CPU base clocks,
  * truncated as gdc.c truncates it. */
 #define NP2_MONITORS(X) \
 	X("24khz", 21052600 / 8, 106, 440) \
 	X("31khz", 25260000 / 8, 100, 449) \
-	X("31khz480", 25260000 / 8, 100, 525)
+	X("31khz480", 25260000 / 8, 100, 525) \
+	X("15khz", 14318180 / 8, 112, 260)
 
 /* floppiesAtStart: (option, how many drives get a disk at power-on). A
  * formatted floppy in drive 1 or 2 is booted before the hard disk, so a
@@ -88,5 +91,43 @@
 #define NP2_BASE_CLOCKS(X) \
 	X("2.4576 MHz", 2457600) \
 	X("1.9968 MHz", 1996800)
+
+/* cpuType (the IA-32 machine): (option, SetCpuTypeIndex index), in the
+ * order and with the names of NP2kai's own CPU menu (x/gtk2/dialog_config.c
+ * cputype_str). The first is the default: the CPU NP2kai's build starts as
+ * (i386c/ia32/cpu.h, CPU_FAMILY with USE_SSE: a Pentium III), which the
+ * driver leaves as pccore.c's initialiser set it, so projects from before
+ * the setting run exactly as they did. The Neko Processor II reports every
+ * feature the build has. */
+#define NP2_CPU_TYPES(X) \
+	X("Intel Pentium III", 8) \
+	X("Intel 80386", 1) \
+	X("Intel i486SX", 2) \
+	X("Intel i486DX", 3) \
+	X("Intel Pentium", 4) \
+	X("Intel MMX Pentium", 5) \
+	X("Intel Pentium Pro", 6) \
+	X("Intel Pentium II", 7) \
+	X("Intel Pentium M", 9) \
+	X("Intel Pentium 4", 10) \
+	X("AMD K6-2", 15) \
+	X("AMD K6-III", 16) \
+	X("AMD K7 Athlon", 17) \
+	X("AMD K7 Athlon XP", 18) \
+	X("Neko Processor II", 255)
+
+/* gdcType: (option, np2cfg.uPD72020). pccore.c starts with the older
+ * uPD7220; the uPD72020 of later machines draws some graphics modes
+ * differently (vram/makegrph.c, maketgrp.c). */
+#define NP2_GDC_TYPES(X) \
+	X("uPD7220", 0) \
+	X("uPD72020", 1)
+
+/* pciBus (the IA-32 machine): (option, np2cfg.usepci, np2cfg.pci_bios32).
+ * Off is pccore.c's default. */
+#define NP2_PCI_BUS(X) \
+	X("Off", 0, 0) \
+	X("On", 1, 0) \
+	X("On with BIOS32", 1, 1)
 
 #endif

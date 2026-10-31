@@ -210,6 +210,18 @@ PY
 		else bad "drums, $g, YM2608 ROM: silent, or more than the sound changed"; fi
 	done
 
+	# ---- leg: the volumes change the sound and nothing else ----------------
+	# The rhythm disk with every volume away from its default: the native
+	# build says NP2kai got them, and the run is the default one but for its
+	# sound.
+	dv=$(folder volumes); cp "$work/run-rhythm-NP2/rhythm.hdm" "$work/run-rhythm-NP2/slots" "$dv/"
+	printf '{"volumeMaster":50,"volumeFM":128,"volumeSSG":0,"volumeADPCM":10,"volumePCM":20,"volumeRhythm":30}' > "$dv/settings"
+	cv=$(NP2_CFG=1 "$native" "$dv" 10 2>/dev/null | grep '^CFG')
+	compare volumes "$dv"
+	if case "$cv" in *" vol 50 128 0 10 20 30 "*) true ;; *) false ;; esac && only_sound rhythm-NP2 volumes; then
+		ok "volumes: they reach NP2kai, and the drums run differs from the default one only in its sound"
+	else bad "volumes: '$cv', or the sound did not change, or more than the sound changed"; fi
+
 	# ---- leg: firmware found whatever the case of the name asked for --------
 	# Chimera mounts each firmware file under its id, in small letters; NP2kai
 	# and fmgen ask in either case (2608_bd.wav, 2608_BD.WAV, FONT.ROM).
@@ -331,6 +343,70 @@ PY
 		if [ "$a" = 1 ] && [ "$c" = 0 ]; then ok "shift, $m: letting go of Right SHIFT leaves SHIFT held; the control is let go"
 		else bad "shift, $m: held '$a', control '$c'"; fi
 	done
+
+	# ---- leg: the machine settings of 2026-10-31 reach NP2kai -------------
+	# Every new machine setting away from its default: the native build says
+	# what the machine got (CFG), the sandbox runs the same, and the run
+	# differs from the default one. A switch value that is not the right
+	# number of bytes leaves the default, as a run with no settings has it.
+	dbase=$d	# compare() sets d
+	d3=$(folder machine-settings); cp "$d/test.hdm" "$d/slots" "$d3/"
+	printf '{"cpuType":"Intel i486DX","dipSwitches":"3e e3 fb","memorySwitches":"48 05 04 08 01 00 01 6E","gdcType":"uPD72020","pegcPlaneMode":true,"pciBus":"On with BIOS32","floppySeekSounds":true}' > "$d3/settings"
+	compare machine-settings "$d3"
+	c3=$(NP2_CFG=1 "$native" "$d3" 10 2>/dev/null | grep '^CFG')
+	c0=$(NP2_CFG=1 "$native" "$dbase" 10 2>/dev/null | grep '^CFG')
+	db=$(folder bad-switches); cp "$dbase/test.hdm" "$dbase/slots" "$db/"
+	printf '{"dipSwitches":"3e e3","memorySwitches":"48 05 04 08 01 00 00 6E 99"}' > "$db/settings"
+	cb=$(NP2_CFG=1 "$native" "$db" 10 2>/dev/null | grep '^CFG')
+	case "$c3" in
+		"CFG dip 3E E3 FB msw 48 05 04 08 01 00 01 6E gdc 1 motor 1 vol 100 64 64 64 64 64 pegcplane 1 pci 1 1 cpu GenuineIntel family 4 model "*" brand Intel(R) i486DX"*) c3ok=1 ;;
+		*) c3ok=0 ;;
+	esac
+	case "$c0" in
+		"CFG dip 3E E3 7B msw 48 05 04 08 01 00 00 6E gdc 0 motor 0 vol 100 64 64 64 64 64 pegcplane 0 pci 0 0 cpu GenuineIntel family 6 "*"Pentium(R) III"*) c0ok=1 ;;
+		*) c0ok=0 ;;
+	esac
+	if [ "$c3ok" = 1 ] && [ "$c0ok" = 1 ] && [ "$cb" = "$c0" ] && ! cmp -s "$work/machine-settings.n" "$work/savedisk.n"; then
+		ok "machine settings: CPU type, DIP and memory switches, GDC, PEGC plane mode, PCI and seek sounds reach NP2kai, the run differs from the default one; switches of the wrong length leave the default"
+	else bad "machine settings: '$c3', default '$c0', bad switches '$cb'"; fi
+
+	# ---- leg: the 15 kHz monitor -------------------------------------------
+	# DIP switch 1-1 on, and the rate of the 640x200 mode, 2457600/39985.
+	d15=$(folder monitor15); cp "$dbase/test.hdm" "$dbase/slots" "$d15/"
+	printf '{"monitor":"15khz"}' > "$d15/settings"
+	compare monitor15 "$d15"
+	v15=$(grep vsync "$work/monitor15.w.err")
+	c15=$(NP2_CFG=1 "$native" "$d15" 10 2>/dev/null | grep '^CFG')
+	case "$c15" in "CFG dip 3F E3 7B "*) c15ok=1 ;; *) c15ok=0 ;; esac
+	if [ "$v15" = "vsync 491520/7997" ] && [ "$c15ok" = 1 ]; then
+		ok "15 kHz monitor: DIP switch 1-1 on and the rate 491520/7997 (61.46 a second)"
+	else bad "15 kHz monitor: rate '$v15', '$c15'"; fi
+
+	# ---- leg: the System Bus ------------------------------------------------
+	# Its size is 1 MB and the extended memory; every byte reads as Main
+	# Memory or Extended Memory has it, and a poke lands there. On both
+	# machines, and with no extended memory.
+	b1=$(NP2_BUS=1 "$runwbx" "$wbx" "$dbase" 100 2>/dev/null | grep '^BUS')
+	db0=$(folder bus0); cp "$dbase/test.hdm" "$dbase/slots" "$db0/"; echo '{"extraMemoryMB":0}' > "$db0/settings"
+	b2=$(NP2_BUS=1 "$runwbx" "$wbx" "$db0" 100 2>/dev/null | grep '^BUS')
+	db2=$(folder bus286); cp "$dbase/test.hdm" "$dbase/slots" "$db2/"; echo '{"machine":"PC98"}' > "$db2/settings"
+	b3=$(NP2_BUS=1 "$runwbx" "$wbx" "$db2" 100 2>/dev/null | grep '^BUS')
+	if [ "$b1" = "BUS ok size=14680064" ] && [ "$b2" = "BUS ok size=1048576" ] && [ "$b3" = "BUS ok size=14680064" ]; then
+		ok "System Bus: reads and pokes the memory domains' bytes, 14 MB with 13 MB extended, 1 MB with none, on both machines"
+	else bad "System Bus: '$b1', no extended memory '$b2', 286 '$b3'"; fi
+	d=$dbase
+
+	# ---- leg: KANA locks ------------------------------------------------------
+	# In N88-BASIC with no disk: Ctrl+KANA tapped and then A and S typed shows
+	# kana, not "as"; KANA tapped twice is back to "as" (the control); a
+	# tap that held the key would have shown "as" too.
+	kana() { NP2_PRESS="$1" "$runwbx" "$wbx" "$work/run-nodisk" 1360 2>/dev/null | lines | tail -n 1 | cut -d' ' -f2; }
+	k0=$(kana "1320:Key A:4,1335:Key S:4")
+	k1=$(kana "1300:Key CTRL:6,1301:Key KANA:4,1320:Key A:4,1335:Key S:4")
+	k2=$(kana "1290:Key KANA:4,1300:Key KANA:4,1320:Key A:4,1335:Key S:4")
+	if [ -n "$k0" ] && [ "$k1" != "$k0" ] && [ "$k2" = "$k0" ]; then
+		ok "KANA: a tap (with Ctrl held, as the default binding sends it) turns kana on for the keys after it, and a second tap turns it off"
+	else bad "KANA: plain '$k0', after Ctrl+KANA '$k1', after two taps '$k2'"; fi
 
 	# ---- leg: one floppy is never in both drives, and an empty domain hides --
 	# Three floppies: drive 1 holds 0, drive 2 holds 1. Selecting disk 1 for

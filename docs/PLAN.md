@@ -857,7 +857,13 @@ not used. Known so far:
 | Sample rate | 44100 Hz (output only) |
 | GDC | uPD7220 |
 | Real BIOS | always (required `bios.rom`; `itf.rom` dropped 2026-10-26, never read) |
-| CPU reported (IA-32) | Pentium III with an SSE build, Pentium without MMX/SSE (`i386c/ia32/cpu.h`); fixed by our build flags |
+| CPU reported (IA-32) | Pentium III with an SSE build (`i386c/ia32/cpu.h`); setting CPU Type picks any of NP2kai's 15 (owner, 2026-10-31) |
+| DIP switches | 3E E3 7B; setting, three hex bytes; switch 1-1 follows Monitor (15khz on) (owner, 2026-10-31) |
+| Memory switches | 48 05 04 08 01 00 00 6E; setting, eight hex bytes (owner, 2026-10-31) |
+| PEGC plane mode, PCI bus (IA-32) | off; settings (owner, 2026-10-31) |
+| Floppy seek sounds | off (`MOTOR`); setting, which also gives real seek times (owner, 2026-10-31) |
+| Volumes | master 100, FM/SSG/ADPCM/PCM/rhythm 64; settings, sound only (owner, 2026-10-31) |
+| Cirrus/WAB card | not built (`SUPPORT_CL_GD5430` off): a second graphics card with its own picture, left for later |
 | FPU | SoftFloat (build A, section 2) |
 
 UNCHECKED, read before the settings are written: the FM engine default
@@ -945,6 +951,15 @@ a bus of the physical address space through NP2kai's own memory read
 functions, with `ReadBus` so a search is fast and `GetBusRanges` so a search
 covers only memory that exists. List the main memory first: tools open on
 the first one.
+
+**Built (owner, 2026-10-31):** the domains are Main Memory, Extended
+Memory, Text VRAM, Graphics VRAM 0 and 0 E, Graphics VRAM 1 and 1 E, and
+Font (the names confirmed by the owner), and one bus, "System Bus": the
+CPU's physical addresses, the first megabyte from `mem[]` (graphics bank 0
+and the BIOS as the CPU sees them) and the extended memory from 1 MB, on
+both machines. It reads the bytes directly, not through NP2kai's memory
+handlers, so a tool's read cannot move the EGC or GRCG latches. `ReadBus`
+fills 64 KiB at once; no `GetBusRanges`, as every byte of it is memory.
 
 **Other optional exports**, each cheap and each listed in porting-a-core.md:
 drives and their lights (`GetDriveCount/Name/Light` and the media exports,
@@ -1420,7 +1435,12 @@ Each entry gives the issue, what happened, and what this core does about it.
 - **#115 (core and frontend from different weeks).** A savestate written by
   one build failed in another with no reason given. **For this core:** put a
   format number in the savestate and refuse a different one with a clear
-  message (section 8).
+  message (section 8). **Settled (owner, 2026-10-31): nothing for the core
+  to add.** miniBox refuses a state whose core.wbx differs by a single byte
+  ("ELF hash mismatch", source/host/host.c) before it touches the machine,
+  and the engine's own format number (`kStateFormat`) covers the frontend
+  side. A number inside the state could only ever be read by the identical
+  binary that wrote it, so it could never disagree.
 - **#26, #162, #291 (a saved project fails to reopen).** Settings were lost,
   files forgotten, or reopening failed. **For this core:** a gate leg makes
   a project, saves it, closes, reopens and replays it, and checks the same
@@ -1553,3 +1573,20 @@ Each entry gives the issue, what happened, and what this core does about it.
   PC-9801-55 board with NP2kai's own SCSI BIOS: the only real SCSI BIOS dump
   at hand (8 KiB, sha1 3D7166F0...) stops at D200:2000 and boots nothing, so
   scsi.rom is not firmware.
+
+- 2026-10-31: second round of the decisions review. New settings: CPU Type
+  (PC9821; NP2kai's 15 CPUs, default the Pentium III the build starts as),
+  DIP Switches and Memory Switches (hex bytes as np2.cfg writes them), GDC
+  Type (uPD7220 or uPD72020), PEGC Plane Mode and PCI Bus (PC9821), Floppy
+  Seek Sounds (NP2kai's MOTOR: the sound and real seek times, so it is part
+  of the machine; built with SUPPORT_SWSEEKSND), a 15khz Monitor (640x200 at
+  61.46 a second; it turns DIP switch 1-1 on), and six volumes (sound only).
+  Every default is the value the machine had, so older projects run the
+  same. The Cirrus/WAB card is not built and stays out. A "System Bus" bus
+  joins the domains (section 11). LICENSE and the package's author name
+  ShinobiWannabe. KANA is bound to Ctrl+ScrollLock, and now locks as the
+  real key does (each press turns kana on or off; NP2kai's mechanical-lock
+  kana), since a held KANA with Ctrl held typed control codes; CAPS is
+  unchanged. A savestate format
+  number was looked at and is not needed (section 18, #115). New gate legs:
+  machine settings, volumes, 15 kHz monitor, System Bus.

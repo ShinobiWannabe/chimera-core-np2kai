@@ -14,6 +14,9 @@
  *   NP2_NORENDER=a,b   turbo from frame a to before frame b
  *                      (SetRenderingEnabled(0), then 1 again)
  *   NP2_REGS=1         print the CPU's registers after the run, as REGS
+ *   NP2_CFG=1          print what the settings made of the machine after the
+ *                      run, as CFG: the switches, chips, volumes and (IA-32)
+ *                      the CPU it reports
  *   NP2_WAV=file       write the whole run's sound there, as a 44100 Hz
  *                      16-bit stereo .wav
  *
@@ -28,6 +31,12 @@
 
 #include "np2-driver.h"
 #include "press-script.h"
+
+#include <compiler.h>
+#include <pccore.h>
+#if defined(CPUCORE_IA32)
+#include <cpucore.h>
+#endif
 
 /* The guest's allocators, as plain memory. */
 void *alloc_invisible(size_t size) { return calloc(1, size); }
@@ -92,6 +101,21 @@ int main(int argc, char **argv)
 		fseek(wav, 4, SEEK_SET); fwrite(&r, 4, 1, wav);
 		fseek(wav, 40, SEEK_SET); fwrite(&n, 4, 1, wav);
 		fclose(wav);
+	}
+	if (getenv("NP2_CFG")) {
+		int k;
+		printf("CFG dip");
+		for (k = 0; k < 3; k++) printf(" %02X", pccore.dipsw[k]);
+		printf(" msw");
+		for (k = 0; k < 8; k++) printf(" %02X", np2cfg.memsw[k]);
+		printf(" gdc %d motor %d vol %d %d %d %d %d %d", np2cfg.uPD72020, np2cfg.MOTOR,
+		       np2cfg.vol_master, np2cfg.vol_fm, np2cfg.vol_ssg, np2cfg.vol_adpcm, np2cfg.vol_pcm, np2cfg.vol_rhythm);
+#if defined(CPUCORE_IA32)
+		printf(" pegcplane %d pci %d %d cpu %s family %u model %u brand %s", np2cfg.usepegcplane, np2cfg.usepci,
+		       np2cfg.pci_bios32, i386cpuid.cpu_vendor, (unsigned)i386cpuid.cpu_family, (unsigned)i386cpuid.cpu_model,
+		       i386cpuid.cpu_brandstring);
+#endif
+		printf("\n");
 	}
 	if (getenv("NP2_REGS")) {
 		int32_t r;

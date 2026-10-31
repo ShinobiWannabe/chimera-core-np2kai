@@ -174,6 +174,29 @@ static void setting_str(const char *key, const char *dflt, char *out, int outsz)
 	}
 }
 
+static long clamp_long(long v, long lo, long hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+/* A setting written as bytes in hexadecimal, separated by spaces, as
+ * NP2kai's np2.cfg writes the DIP and memory switches ("3E E3 7B"). Exactly
+ * n bytes, or the value is refused and out keeps the initialiser's. */
+static void hex_bytes(const char *key, UINT8 *out, int n)
+{
+	char text[64], *p, *end;
+	UINT8 got[16];
+	int i = 0;
+	if (wbx_setting_str(key, text, sizeof text) < 0) return;
+	for (p = text; *p; ) {
+		unsigned long v;
+		while (*p == ' ' || *p == '\t' || *p == ',') p++;
+		if (!*p) break;
+		v = strtoul(p, &end, 16);
+		if (end == p || end - p > 2 || v > 0xff || i == n) return;
+		got[i++] = (UINT8)v;
+		p = end;
+	}
+	if (i == n) memcpy(out, got, (size_t)n);
+}
+
 /* np2cfg as the Linux SDL build starts with no np2.cfg (docs/PLAN.md
  * section 9, user-decided): pccore.c's initialiser, which this build shares,
  * except where the libretro branch of it differs. Then the settings, and then
@@ -219,6 +242,42 @@ static void configure(void)
 #define X(option, drives) if (!strcmp(name, option)) g_floppiesAtStart = drives;
 	NP2_FLOPPIES_AT_START(X)
 #undef X
+	/* the machine's switches and chips (owner, 2026-10-31); each default is
+	 * what pccore.c's initialiser already put there */
+	hex_bytes("dipSwitches", np2cfg.dipsw, 3);
+	hex_bytes("memorySwitches", np2cfg.memsw, 8);
+	/* DIP switch 1-1 tells the machine a 15 kHz monitor is fitted, which
+	 * is what gdc_reset starts the display in: the Monitor setting owns it,
+	 * so the mode the machine starts in is the one frames are counted in */
+	setting_str("monitor", "24khz", name, sizeof name);
+	if (!strcmp(name, "15khz")) np2cfg.dipsw[0] |= 0x01;
+	else np2cfg.dipsw[0] &= (UINT8)~0x01;
+	setting_str("gdcType", "uPD7220", name, sizeof name);
+#define X(option, upd72020) if (!strcmp(name, option)) np2cfg.uPD72020 = upd72020;
+	NP2_GDC_TYPES(X)
+#undef X
+#if defined(CPUCORE_IA32)
+	/* the default is the CPU the build starts as, left as pccore.c set it */
+	setting_str("cpuType", "Intel Pentium III", name, sizeof name);
+#define X(option, index) if (!strcmp(name, option) && index != 8) SetCpuTypeIndex(index);
+	NP2_CPU_TYPES(X)
+#undef X
+	np2cfg.usepegcplane = (UINT8)(wbx_setting_bool("pegcPlaneMode", 0) != 0);
+	setting_str("pciBus", "Off", name, sizeof name);
+#define X(option, pci, bios32) if (!strcmp(name, option)) { np2cfg.usepci = pci; np2cfg.pci_bios32 = bios32; }
+	NP2_PCI_BUS(X)
+#undef X
+#endif
+	/* the head's sound and its real seek time are one switch in NP2kai
+	 * (fdd/fdd_mtr.c); its volume is the initialiser's 50 */
+	np2cfg.MOTOR = (UINT8)(wbx_setting_bool("floppySeekSounds", 0) != 0);
+	if (!np2cfg.MOTOR) np2cfg.MOTORVOL = 0;
+	np2cfg.vol_master = (UINT8)clamp_long(wbx_setting_long("volumeMaster", 100), 0, 100);
+	np2cfg.vol_fm = (UINT8)clamp_long(wbx_setting_long("volumeFM", 64), 0, 128);
+	np2cfg.vol_ssg = (UINT8)clamp_long(wbx_setting_long("volumeSSG", 64), 0, 128);
+	np2cfg.vol_adpcm = (UINT8)clamp_long(wbx_setting_long("volumeADPCM", 64), 0, 128);
+	np2cfg.vol_pcm = (UINT8)clamp_long(wbx_setting_long("volumePCM", 64), 0, 128);
+	np2cfg.vol_rhythm = (UINT8)clamp_long(wbx_setting_long("volumeRhythm", 64), 0, 128);
 	np2cfg.samplingrate = 44100;
 	/* the real BIOS, sound BIOS, IDE BIOS (PC-9821) and drum samples
 	 * are required firmware (owner, 2026-10-24): never NP2kai's stand-ins */
@@ -238,7 +297,6 @@ static void configure(void)
 	np2cfg.cal_vofs = 0;
 	np2cfg.keyrepeat_enable = 0;
 	np2cfg.fpu_type = FPU_TYPE_SOFTFLOAT;
-	np2cfg.MOTOR = 0;
 	np2cfg.biospath[0] = '\0';	/* firmware is mounted under its own name */
 	file_setcd("");
 
@@ -776,8 +834,14 @@ static void apply_input(void)
 				continue;
 			}
 			if (g_level[i] != g_last[i]) {
-				if (g_level[i]) keystat_keydown((REG8)what);
-				else keystat_keyup((REG8)what);
+				/* KANA is a locking key on the PC-98's keyboard: each press
+				 * turns kana on or off, as NP2kai's mechanical-lock kana
+				 * (keystat.c, ref 0x82, key 0xF2) does, so it can sit on a
+				 * key combination such as Ctrl+ScrollLock and kana stays on
+				 * while typing (owner, 2026-10-31) */
+				REG8 ref = what == 0x72 ? 0x82 : (REG8)what;
+				if (g_level[i]) keystat_keydown(ref);
+				else keystat_keyup(ref);
 			}
 			continue;
 		}
@@ -914,6 +978,58 @@ ECL_EXPORT int GetMemoryDomainWritable(int i) { return i >= 0 && i < DOMAIN_COUN
 ECL_EXPORT int32_t GetMemoryDomainHidden(int32_t i)
 {
 	return GetMemoryDomainSize(i) == 0;
+}
+
+/* The System Bus (owner, 2026-10-31): memory by the address the CPU puts
+ * on the bus, so an address from a debugger or a disassembly is found
+ * as written. The first megabyte is mem[] as the CPU sees it (graphics
+ * bank 0, the BIOS), and from 1 MB on the extended memory, to its end.
+ * It reads the memory itself, never through NP2kai's memory handlers, so a
+ * tool's read cannot move the EGC's or GRCG's latches. */
+#define BUS_LOW 0x100000
+
+static int64_t bus_size(void)
+{
+	return BUS_LOW + (CPU_EXTMEM ? (int64_t)CPU_EXTMEMSIZE : 0);
+}
+
+static uint8_t *bus_byte(int64_t addr)
+{
+	if (addr < 0 || addr >= bus_size()) return NULL;
+	return addr < BUS_LOW ? mem + addr : CPU_EXTMEM + (addr - BUS_LOW);
+}
+
+ECL_EXPORT int32_t GetBusCount(void) { return 1; }
+ECL_EXPORT const char *GetBusName(int32_t b) { return b == 0 ? "System Bus" : NULL; }
+ECL_EXPORT int64_t GetBusSize(int32_t b) { return b == 0 ? bus_size() : 0; }
+ECL_EXPORT int32_t GetBusWritable(int32_t b) { return b == 0; }
+
+ECL_EXPORT int32_t PeekBus(int32_t b, int32_t addr)
+{
+	uint8_t *p = b == 0 ? bus_byte(addr) : NULL;
+	return p ? *p : 0;
+}
+
+ECL_EXPORT void PokeBus(int32_t b, int32_t addr, int32_t value)
+{
+	uint8_t *p = b == 0 ? bus_byte(addr) : NULL;
+	if (p) *p = (uint8_t)value;
+}
+
+/* up to 64 KiB of the bus at once, for RAM Search; what a tool read is no
+ * part of the machine, so its buffer is not in a savestate */
+static ECL_INVISIBLE uint8_t g_busRead[0x10000];
+
+ECL_EXPORT const uint8_t *ReadBus(int32_t b, int64_t addr, int32_t len)
+{
+	int32_t i;
+	if (len < 0) len = 0;
+	if (len > (int32_t)sizeof g_busRead) len = (int32_t)sizeof g_busRead;
+	for (i = 0; i < len; i++) {
+		uint8_t *p = b == 0 ? bus_byte(addr + i) : NULL;
+		g_busRead[i] = p ? *p : 0;
+	}
+	return g_busRead;
 }
 
 /* ------------------------------------------------------------ drives

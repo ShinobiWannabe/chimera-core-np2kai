@@ -44,6 +44,9 @@ BASE_CLOCKS = [r[0] for r in table(SETTINGS_H, 'NP2_BASE_CLOCKS')]
 SOUND_GENERATORS = [r[0] for r in table(SETTINGS_H, 'NP2_SOUND_GENERATORS')]
 RHYTHM_SAMPLES = [r[0] for r in table(SETTINGS_H, 'NP2_RHYTHM_SAMPLES')]
 FLOPPIES_AT_START = [r[0] for r in table(SETTINGS_H, 'NP2_FLOPPIES_AT_START')]
+CPU_TYPES = [r[0] for r in table(SETTINGS_H, 'NP2_CPU_TYPES')]
+GDC_TYPES = [r[0] for r in table(SETTINGS_H, 'NP2_GDC_TYPES')]
+PCI_BUS = [r[0] for r in table(SETTINGS_H, 'NP2_PCI_BUS')]
 
 names = [b[0] for b in BUTTONS]
 assert len(names) == len(set(names)), 'two buttons share a name'
@@ -251,11 +254,14 @@ SETTINGS = [
             "The display mode the frame rate is counted in. One frame is one "
             "picture of the PC-98's display, and its rate depends on the "
             "mode: 24khz is the usual 640x400 mode at 56.42 frames a second, "
-            "31khz is the PC-9821's 640x400 mode at 70.32, and 31khz480 its "
-            "640x480 mode at 60.14. The machine always starts in the 24khz "
-            "mode, and software switches mode by itself. Choose the mode the "
-            "game runs in, so the movie's times are right. It decides how a "
-            "movie's frames are counted, so a movie needs the same value.",
+            "31khz is the PC-9821's 640x400 mode at 70.32, 31khz480 its "
+            "640x480 mode at 60.14, and 15khz the 640x200 mode of the first "
+            "PC-9801s, at 61.46. The machine starts in the 24khz mode, or in "
+            "the 15khz one when 15khz is chosen (it sets DIP switch 1-1, which "
+            "tells the machine a 15 kHz monitor is fitted), and software "
+            "switches mode by itself. Choose the mode the game runs in, so "
+            "the movie's times are right. It decides how a movie's frames "
+            "are counted, so a movie needs the same value.",
             "enum", MONITORS[0], options=MONITORS),
     setting("floppiesAtStart", "Floppies at Start",
             "Which drives have a floppy in them when the machine is switched "
@@ -276,6 +282,91 @@ SETTINGS = [
             "show, with no conversion. The clock then runs with the emulated "
             "time, not with the time on your computer. " + MACHINE,
             "datetime", 788918400),
+    setting("cpuType", "CPU Type",
+            "Which CPU the IA-32 machine reports to software that asks (the "
+            "CPUID instruction): its maker, family and the features it has. "
+            "The default, Intel Pentium III, is the CPU NP2kai starts as. "
+            "Windows and some PC-9821 software check it, and a few programs "
+            "refuse a CPU they do not know or crash on features a real "
+            "PC-9821 never had; an older choice hides the newer features. "
+            "Neko Processor II is NP2kai's own, with every feature the "
+            "emulator has. " + MACHINE,
+            "enum", CPU_TYPES[0], options=CPU_TYPES, when=IA32),
+    setting("dipSwitches", "DIP Switches",
+            "The three banks of DIP switches on the back of the machine, as "
+            "three bytes in hexadecimal, bank 1 first (NP2kai writes them the "
+            "same way in its np2.cfg). The default, 3E E3 7B, is NP2kai's. "
+            "They tell the BIOS and software things such as the monitor, the "
+            "number of floppy drives and the memory fitted. Switch 1-1 (the "
+            "lowest bit of the first byte) is set by the Monitor setting, and "
+            "switch 3-8 (the top bit of the third byte) starts the 286 "
+            "machine's CPU as a V30. A value that is not three bytes is "
+            "refused, and the default is used. " + MACHINE,
+            "string", "3E E3 7B"),
+    setting("memorySwitches", "Memory Switches",
+            "The eight memory switches the PC-98 keeps in its battery-backed "
+            "memory, as eight bytes in hexadecimal (NP2kai writes them the "
+            "same way in its np2.cfg). The default, 48 05 04 08 01 00 00 6E, "
+            "is NP2kai's. They hold settings MS-DOS's SWITCH command changes, "
+            "such as the printer, the RS-232C line and the text screen. "
+            "Software that changes them changes them in the machine, and "
+            "they go back to this value when the machine is switched on or "
+            "reset. A value that is not eight bytes is refused, and the "
+            "default is used. " + MACHINE,
+            "string", "48 05 04 08 01 00 00 6E"),
+    setting("gdcType", "GDC Type",
+            "Which graphics display controller chip the machine has. The "
+            "uPD7220, the default, is the earlier chip; the uPD72020 of later "
+            "machines draws some graphics modes differently, which a few "
+            "games rely on. " + MACHINE,
+            "enum", GDC_TYPES[0], options=GDC_TYPES),
+    setting("pegcPlaneMode", "PEGC Plane Mode",
+            "Whether the PC-9821's 256-colour graphics (the PEGC) also offer "
+            "their plane mode, which a few programs use instead of the usual "
+            "packed mode. Off by default, as in NP2kai. " + MACHINE,
+            "bool", False, when=IA32),
+    setting("pciBus", "PCI Bus",
+            "Whether the IA-32 machine has a PCI bus, as the later PC-9821 "
+            "models do, and whether its BIOS offers the BIOS32 service PCI "
+            "software looks for. Off by default, as in NP2kai. Windows 95 "
+            "and later use it to find PCI devices. " + MACHINE,
+            "enum", PCI_BUS[0], options=PCI_BUS, when=IA32),
+    setting("floppySeekSounds", "Floppy Seek Sounds",
+            "Plays the sound of the floppy drive's head moving, as NP2kai "
+            "can. It also makes a seek take as long as a real drive's head "
+            "takes to move, which NP2kai ties to the sound, so it changes "
+            "how long disk access takes. Off by default, as in NP2kai. " + MACHINE,
+            "bool", False),
+    setting("volumeMaster", "Master Volume",
+            "Every sound of the machine together, in per cent. The default, 100, is NP2kai's (out of 100). Only the sound changes, "
+            "never what the machine does, so a movie plays back the same "
+            "with any value.",
+            "int", 100, min=0, max=100),
+    setting("volumeFM", "FM Volume",
+            "The FM music of the sound board's FM chip (and of OPL chips). The default, 64, is NP2kai's (out of 128). Only the sound changes, "
+            "never what the machine does, so a movie plays back the same "
+            "with any value.",
+            "int", 64, min=0, max=128),
+    setting("volumeSSG", "SSG Volume",
+            "The SSG of the FM chip, which most games use for sound effects. The default, 64, is NP2kai's (out of 128). Only the sound changes, "
+            "never what the machine does, so a movie plays back the same "
+            "with any value.",
+            "int", 64, min=0, max=128),
+    setting("volumeADPCM", "ADPCM Volume",
+            "The ADPCM sample channel of the PC-9801-86 and similar boards. The default, 64, is NP2kai's (out of 128). Only the sound changes, "
+            "never what the machine does, so a movie plays back the same "
+            "with any value.",
+            "int", 64, min=0, max=128),
+    setting("volumePCM", "PCM Volume",
+            "The PCM sample playback of the PC-9801-86 board. The default, 64, is NP2kai's (out of 128). Only the sound changes, "
+            "never what the machine does, so a movie plays back the same "
+            "with any value.",
+            "int", 64, min=0, max=128),
+    setting("volumeRhythm", "Rhythm Volume",
+            "The drums of the FM chip (YM2608 rhythm). The default, 64, is NP2kai's (out of 128). Only the sound changes, "
+            "never what the machine does, so a movie plays back the same "
+            "with any value.",
+            "int", 64, min=0, max=128),
     setting("fontFile", "Font File",
             "Which file holds the PC-98's characters: FONT.ROM, a dump of the "
             "character ROM, or FONT.BMP, the picture form some emulators "
@@ -392,7 +483,7 @@ CONFIG = {
     "coreName": "NP2kai",
     "systemId": MACHINES[0][0],
     "systemNames": {m: label for m, label in MACHINES},
-    "author": "NP2 developer team, Neko Project II kai (AZO and contributors); chimera port",
+    "author": "NP2 developer team, Neko Project II kai (AZO and contributors); Chimera port by ShinobiWannabe and contributors",
     "url": "https://github.com/ShinobiWannabe/chimera-core-np2kai",
     "romFile": "rom",
     "deterministic": True,
@@ -444,9 +535,12 @@ print('waterbox.config written: %d buttons, %d settings, %d firmware, vsync %d/%
 # keyboard's own keys (muhenkan and henkan). STOP is Shift+Pause and vf.1
 # and vf.2 Ctrl+F11 and Ctrl+F12, clear of Chimera's Pause and Screenshot
 # hotkeys.
-# KANA ships unbound too: the frontend sends the kana key as "HangulMode",
-# a name nobody would look for. vf.3-vf.5, the underscore and keypad = and ,
-# have no PC key.
+# KANA is Ctrl+ScrollLock (owner, 2026-10-31: a combination of its own). The
+# frontend sends a Japanese keyboard's kana key as "HangulMode", a name
+# nobody would look for, and Scroll Lock is bound to nothing else and is no
+# Chimera hotkey, alone or with Ctrl. KANA locks (np2-driver.c), so a tap
+# of the combination turns kana on and Ctrl is let go before typing.
+# vf.3-vf.5, the underscore and keypad = and , have no PC key.
 HOST = {
     'Key STOP': 'Shift+Pause', 'Key COPY': 'PrintScreen',
     'Key ESC': 'Escape', 'Key Minus': 'Minus', 'Key Caret': 'Equals', 'Key Yen': 'Backtick',
@@ -462,7 +556,7 @@ HOST = {
     'Key CAPS': 'CapsLock', 'Key GRPH': 'Alt, LeftAlt',
     'Key NFER': 'ImeNonConvert',
     'Key SPACE': 'Space', 'Key XFER': 'ImeConvert', 'Key Down': 'Down',
-    'Key vf.1': 'Ctrl+F11', 'Key vf.2': 'Ctrl+F12',
+    'Key vf.1': 'Ctrl+F11', 'Key vf.2': 'Ctrl+F12', 'Key KANA': 'Ctrl+ScrollLock',
     'Key Pad Period': 'KeypadDecimal',
     'Mouse Left Button': 'WMouse L', 'Mouse Right Button': 'WMouse R',
     # the arrows are the keyboard's, so the stick is on the game pad only
@@ -490,8 +584,9 @@ KEYBINDS = {
         "Default bindings for the PC-98: the keyboard as NP2kai's SDL2 build maps",
         "a PC keyboard (sdl/kbtrans.c), except GRPH on Alt and NFER and XFER on a",
         "Japanese keyboard's own keys; the mouse on the host mouse, the joystick",
-        "on the game pad. KANA, vf.3-vf.5, the underscore, keypad = and , and the",
-        "floppy controls ship unbound. Written by tools/gen-config.py.",
+        "on the game pad; KANA on Ctrl+ScrollLock. vf.3-vf.5, the underscore,",
+        "keypad = and , the drive controls and Reset ship unbound. Written by",
+        "tools/gen-config.py.",
     ],
     "AllTrollers": {"PC-98 Controller": binds},
     "AllTrollersAutoFire": {"PC-98 Controller": {}},

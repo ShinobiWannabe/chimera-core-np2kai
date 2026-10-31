@@ -28,6 +28,13 @@
 	X(int64_t, GetMemoryDomainSize, (int i), (i)) \
 	X(int, GetMemoryDomainWritable, (int i), (i)) \
 	X(int32_t, GetMemoryDomainHidden, (int32_t i), (i)) \
+	X(int32_t, GetBusCount, (void), ()) \
+	X(const char *, GetBusName, (int32_t b), (b)) \
+	X(int64_t, GetBusSize, (int32_t b), (b)) \
+	X(int32_t, GetBusWritable, (int32_t b), (b)) \
+	X(int32_t, PeekBus, (int32_t b, int32_t addr), (b, addr)) \
+	X(void, PokeBus, (int32_t b, int32_t addr, int32_t value), (b, addr, value)) \
+	X(const uint8_t *, ReadBus, (int32_t b, int64_t addr, int32_t len), (b, addr, len)) \
 	X(int32_t, GetSaveDataFileCount, (void), ()) \
 	X(const char *, GetSaveDataFileName, (int32_t index), (index)) \
 	X(int64_t, GetSaveDataFileSize, (int32_t index), (index)) \

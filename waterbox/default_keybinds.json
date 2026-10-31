@@ -3,8 +3,9 @@
     "Default bindings for the PC-98: the keyboard as NP2kai's SDL2 build maps",
     "a PC keyboard (sdl/kbtrans.c), except GRPH on Alt and NFER and XFER on a",
     "Japanese keyboard's own keys; the mouse on the host mouse, the joystick",
-    "on the game pad. KANA, vf.3-vf.5, the underscore, keypad = and , and the",
-    "floppy controls ship unbound. Written by tools/gen-config.py."
+    "on the game pad; KANA on Ctrl+ScrollLock. vf.3-vf.5, the underscore,",
+    "keypad = and , the drive controls and Reset ship unbound. Written by",
+    "tools/gen-config.py."
   ],
   "AllTrollers": {
     "PC-98 Controller": {
@@ -87,7 +88,7 @@
       "Key Underscore": "",
       "Key Right SHIFT": "RightShift",
       "Key CAPS": "CapsLock",
-      "Key KANA": "",
+      "Key KANA": "Ctrl+ScrollLock",
       "Key GRPH": "Alt, LeftAlt",
       "Key NFER": "ImeNonConvert",
       "Key SPACE": "Space",
