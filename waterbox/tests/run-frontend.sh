@@ -1,36 +1,43 @@
 #!/bin/bash
 # run-frontend.sh - the frontend half of the gate: the NP2kai package through
-# Chimera's own engine (chimera-run) and through the real frontend
-# (Chimera.exe, headless), each held to the native reference: the Main Memory
-# domain after the same frames with nothing pressed, byte for byte.
+# Chimera's own engine (chimera-run) and through Chimera's window (run
+# headless), each held to the native reference: the Main Memory domain after
+# the same frames with nothing pressed, byte for byte.
+#
+# A game runs only in a project (Chimera, 2026-10-26): every run here opens
+# a .chimeraProject made by chimera-run --new-project beside a copy of its
+# disk, as the window's New Project makes one. A project is a zip of
+# project.json and input.input (Chimera, 2026-11-02).
 #
 # Legs:
-#   engine:file        a disk opened with no project (mounted as "rom" and
-#                      under its own name) boots the IA-32 machine
+#   engine:file        a disk made into a project with nothing but the
+#                      package's defaults boots the IA-32 machine
 #   engine:machine     the machine setting PC98 boots the 286 half, which is
 #                      the 286 reference and not the IA-32 one
-#   engine:project     a .chimeraProject with the disk in the floppy slot and
-#                      the font pinned by hash reaches the same machine
+#   engine:project     the disk named in the floppy slot, the firmware pinned
+#                      by hash, reaches the same machine
 #   engine:savedata    the sector the test disk writes leaves as save data;
 #                      the control disk, which writes nothing, leaves none
-#   frontend:boot      Chimera.exe runs the package to the same machine
+#   frontend:boot      Chimera's window runs the package to the same machine
 #   frontend:read      a Lua script reads a known address of Main Memory and
 #                      gets what the native run left there
-#   frontend:keybinds  the package's bindings become the frontend's defaults
+#   frontend:keybinds  the package's bindings are the window's when nobody
+#                      changed them
 #   lua:<check>        frontend-tools.lua on the counter disk: the memory
-#                      domains, their views of Main Memory, a search for the
-#                      frame counter, pokes the program sees, registers,
-#                      keys from joypad.set, memory states and frame events
-#                      (what RAM Search, RAM Watch and scripts stand on);
-#                      lua:callbacks is said as INFO, not required
+#                      domains, their views of Main Memory, the System Bus,
+#                      a search for the frame counter, pokes the program
+#                      sees, registers, keys from joypad.set, memory states
+#                      and frame events (what RAM Search, RAM Watch and
+#                      scripts stand on); lua:callbacks is said as INFO
 #   movie:record:<g>   a named game (tests/games/<g>.json, found by sha1 in
 #                      NP2_GAMES) recorded through chimera-run from its key
 #                      presses reaches the native run's memory
 #   movie:replay:<g>   that recorded movie, replayed in a new process, reaches
 #                      the same memory, and the game's screen checks hold
 #
-# Runs on Windows (Git Bash, Chimera.exe and build/dll/chimera-run.exe) and
-# on Linux (Mono on a private Xvfb display, build/meson-linux/chimera-run).
+# Chimera is a bundle (a nightly's download, or tools/build-bundle.sh's
+# output: chimera[.exe] and bin/chimera-run[.exe]) or a Linux checkout built
+# with meson (build/meson-linux). Runs on Windows (Git Bash) and Linux.
 #
 # The native reference is made by run-native (Linux), with --make-reference,
 # into build/frontend-ref; a Windows machine is given that folder. It holds
@@ -39,8 +46,11 @@
 # up it holds the BIOS and the other ROMs, and its second MB the font, all
 # the user's firmware.
 #
-# Usage: run-frontend.sh [--chimera-root <path>] [--frames N] [--make-reference]
+# Usage: run-frontend.sh [--chimera <bundle or checkout>] [--frames N] [--make-reference]
+#        (--chimera-root is the same as --chimera)
 # Environment:
+#   CHIMERA         the bundle or checkout, when --chimera is not given
+#                   (else ../chimera-main or ../chimera beside this repository)
 #   NP2_FIRMWARE    a folder holding the required firmware, the user's own,
 #                   never committed: FONT.ROM, BIOS.ROM, SOUND.ROM,
 #                   IDE.ROM (or IDEBIOS.ROM) and the six 2608_*.WAV, any case
@@ -56,11 +66,11 @@ here="$(cd "$(dirname "$0")" && pwd)"
 wb="$(cd "$here/.." && pwd)"
 root="$(cd "$wb/.." && pwd)"
 frames=600
-chimera_root=""
+chimera_root="${CHIMERA:-}"
 make_ref=0
 while [ $# -gt 0 ]; do
 	case "$1" in
-		--chimera-root) chimera_root="$2"; shift ;;
+		--chimera|--chimera-root) chimera_root="$2"; shift ;;
 		--frames) frames="$2"; shift ;;
 		--make-reference) make_ref=1 ;;
 		*) echo "unknown argument: $1" >&2; exit 2 ;;
@@ -189,25 +199,23 @@ sha1() { "$PY" -c 'import hashlib,sys; print(hashlib.sha1(open(sys.argv[1],"rb")
 [ "$(sed -n 's/^testdisk=//p' "$ref/info.txt" | tr -d '\r')" = "$(sha1 "$work/test.hdm")" ] ||
 	{ echo "the reference was made from another test disk" >&2; exit 1; }
 
+
 # ---- Chimera ----------------------------------------------------------------
 if [ -z "$chimera_root" ]; then
 	for c in "$root/../chimera-main" "$root/../chimera"; do
-		[ -d "$c/source/gui" ] && { chimera_root="$c"; break; }
+		[ -d "$c" ] && { chimera_root="$c"; break; }
 	done
 fi
-[ -n "$chimera_root" ] && [ -d "$chimera_root" ] || { echo "Chimera checkout not found; pass --chimera-root" >&2; exit 1; }
+[ -n "$chimera_root" ] && [ -d "$chimera_root" ] || { echo "Chimera not found; pass --chimera <bundle or checkout>" >&2; exit 1; }
 chimera_root="$(cd "$chimera_root" && pwd)"
-package=$(ls "$root"/build/package/np2kai-*.chimeraCore 2>/dev/null | head -1)
-[ -f "$package" ] || { echo "no package in $root/build/package (waterbox/build-package.sh)" >&2; exit 1; }
-if [ "$windows" = 1 ]; then
-	crun="$chimera_root/build/dll/chimera-run.exe"
-	emu="$chimera_root/build/Chimera.exe"
-else
-	crun="$chimera_root/build/meson-linux/chimera-run"
-	[ -x "$crun" ] || crun="$chimera_root/build/dll/chimera-run"
-	emu="$chimera_root/build/Chimera.exe"
-	export LD_LIBRARY_PATH="$chimera_root/build/dll:$chimera_root/build${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+x=""; [ "$windows" = 1 ] && x=".exe"
+if [ -f "$chimera_root/bin/chimera-run$x" ]; then	# a bundle
+	crun="$chimera_root/bin/chimera-run$x"; emu="$chimera_root/chimera$x"
+else	# a checkout built with meson
+	crun="$chimera_root/build/meson-linux/chimera-run"; emu="$chimera_root/build/meson-linux/source/ui/chimera"
 fi
+package=$(ls -t "$root"/build/package/np2kai-*.chimeraCore 2>/dev/null | head -1)
+[ -f "$package" ] || { echo "no package in $root/build/package (waterbox/build-package.sh)" >&2; exit 1; }
 
 ok=0; failed=0; skipped=0
 report() {
@@ -233,65 +241,81 @@ print("first difference at 0x%X" % d if d is not None else "the memory below C00
 PY
 }
 
+# ---- projects ---------------------------------------------------------------
+# Every run gives the firmware (a project pins it by hash and never holds
+# it). A project pins what its disk needs: IDE.ROM only with a hard disk.
+FWARGS=(--firmware "font.rom=$(native_path "$font")")
+PINS=(--firmware "font.rom=$(native_path "$font")")
+for id in $FIRMWARE_IDS; do
+	FWARGS+=(--firmware "$id=$(native_path "$(fw_file "$id")")")
+	[ "$id" = ide.rom ] || PINS+=(--firmware "$id=$(native_path "$(fw_file "$id")")")
+done
+# project <name> <disk> [chimera-run --new-project options...]: a project
+# made beside a copy of the disk, in build/frontend/projects/<name>; prints
+# its path, or nothing when chimera-run refused (its words in make.log there)
+project() {
+	local name=$1 disk=$2 d="$work/projects/$1"; shift 2
+	rm -rf "$d"; mkdir -p "$d"; cp "$disk" "$d/"
+	"$crun" --new-project "$(native_path "$d/$name.chimeraProject")" "$(native_path "$package")" \
+		"$(native_path "$d/$(basename "$disk")")" "$@" > "$d/make.log" 2>&1 && printf '%s' "$d/$name.chimeraProject"
+}
+made() { echo "no project: $(tail -1 "$work/projects/$1/make.log" 2>/dev/null)"; }
+
 # ---- the engine: chimera-run ----------------------------------------------
-# An empty movie and --record: the run is that many frames with nothing
-# pressed (chimera-run's own advice for a fixed-length idle run).
-printf '[Input]\n[/Input]\n' > "$work/empty.txt"
-FONTW=$(native_path "$font")
-FWARGS=(--firmware "font.rom=$FONTW")
-for id in $FIRMWARE_IDS; do FWARGS+=(--firmware "$id=$(native_path "$(fw_file "$id")")"); done
-engine() {	# engine <tag> <disk> [chimera-run flags...]
-	local tag=$1 disk=$2; shift 2
+# A project with no input, run with --record for a number of frames: that
+# many frames with nothing pressed (chimera-run's own advice for a
+# fixed-length idle run).
+engine() {	# engine <tag> <project> [chimera-run flags...]
+	local tag=$1 proj=$2; shift 2
 	rm -f "$work/$tag.mem.bin"
-	"$crun" "$(native_path "$package")" "$(native_path "$disk")" "$(native_path "$work/empty.txt")" \
+	[ -n "$proj" ] || return 1
+	"$crun" --project "$(native_path "$proj")" "$(native_path "$package")" \
 		--record "$(native_path "$work/$tag.rec.txt")" --frames "$frames" \
 		"${FWARGS[@]}" --dump "Main Memory=$(native_path "$work/$tag.mem.bin")" "$@" \
 		> "$work/$tag.log" 2>&1
 }
-if [ ! -x "$crun" ] && [ ! -f "$crun" ]; then
+if [ ! -f "$crun" ]; then
 	for leg in engine:file engine:machine engine:project engine:savedata; do
-		report "$leg" FAIL "chimera-run not built: $crun"
+		report "$leg" FAIL "chimera-run not found: $crun"
 	done
 else
-	engine file "$work/test.hdm"
-	if same_as "$work/file.mem.bin" np21; then report engine:file PASS "$frames frames, Main Memory the same as the native reference"
-	else report engine:file FAIL "Main Memory differs, $(where "$work/file.mem.bin" np21) (see build/frontend/file.log)"; fi
+	# the disk alone: its kind of file picks the slot and the machine, every
+	# setting at the package's default
+	p=$(project file "$work/test.hdm" "${PINS[@]}")
+	if [ -z "$p" ]; then report engine:file FAIL "$(made file)"
+	else
+		engine file "$p"
+		if same_as "$work/file.mem.bin" np21; then report engine:file PASS "$frames frames, Main Memory the same as the native reference"
+		else report engine:file FAIL "Main Memory differs, $(where "$work/file.mem.bin" np21) (see build/frontend/file.log)"; fi
+	fi
 
-	engine machine "$work/test.hdm" --settings '{"machine":"PC98"}'
-	if same_as "$work/machine.mem.bin" np2 && ! cmp -s "$work/machine.mem.bin" "$work/file.mem.bin"; then
-		report engine:machine PASS "machine PC98 is the 286 reference, not the IA-32 run"
-	else report engine:machine FAIL "the PC98 run is not the 286 reference, $(where "$work/machine.mem.bin" np2) (see build/frontend/machine.log)"; fi
+	# chimera-run --new-project takes each setting's first declaration's
+	# default, whatever the machine; the window's New Project takes the one
+	# whose "when" names the machine. So the PC98 multiplier's own default, 4,
+	# is given as the window would give it.
+	p=$(project machine "$work/test.hdm" "${PINS[@]}" --settings '{"machine":"PC98","clockMultiplier":"4"}')
+	if [ -z "$p" ]; then report engine:machine FAIL "$(made machine)"
+	else
+		engine machine "$p"
+		if same_as "$work/machine.mem.bin" np2 && ! cmp -s "$work/machine.mem.bin" "$work/file.mem.bin"; then
+			report engine:machine PASS "machine PC98 is the 286 reference, not the IA-32 run"
+		else report engine:machine FAIL "the PC98 run is not the 286 reference, $(where "$work/machine.mem.bin" np2) (see build/frontend/machine.log)"; fi
+	fi
 
-	# a project: the disk in the floppy slot, the firmware pinned by its hashes
-	pdir="$work/project"; rm -rf "$pdir"; mkdir -p "$pdir"; cp "$work/test.hdm" "$pdir/"
-	fwlist="$work/project-firmware.txt"; : > "$fwlist"
-	for id in $FIRMWARE_IDS; do [ "$id" = ide.rom ] || printf '%s\t%s\n' "$id" "$(native_path "$(fw_file "$id")")" >> "$fwlist"; done
-	"$PY" - "$pdir/test.hdm" "$font" "$pdir/p.chimeraProject" "$fwlist" <<'PY'
-import hashlib, json, sys
-sha1 = lambda p: hashlib.sha1(open(p, "rb").read()).hexdigest().upper()
-# every firmware the floppy project needs (IDE.ROM only goes with a hard disk)
-more = [{"id": i, "sha1": sha1(p)} for i, p in (l.rstrip("\n").split("\t", 1) for l in open(sys.argv[4]) if l.strip())]
-json.dump({
-    "title": "np2kai frontend gate",
-    "core": {"name": "NP2kai", "version": "", "sha1": ""},
-    "headers": {"MovieVersion": "Chimera Project File v1.1", "Platform": "PC9821"},
-    "files": [{"name": "test.hdm", "sha1": sha1(sys.argv[1]), "slot": "floppy"}],
-    "firmware": [{"id": "font.rom", "sha1": sha1(sys.argv[2])}] + more,
-    "settings": {},
-    "input": "[Input]\n[/Input]\n",
-}, open(sys.argv[3], "w"))
-PY
-	rm -f "$work/project.mem.bin"
-	"$crun" --project "$(native_path "$pdir/p.chimeraProject")" "$(native_path "$package")" --allow-core-mismatch \
-		--record "$(native_path "$work/project.rec.txt")" --frames "$frames" \
-		"${FWARGS[@]}" --dump "Main Memory=$(native_path "$work/project.mem.bin")" \
-		> "$work/project.log" 2>&1
-	if same_as "$work/project.mem.bin" np21; then report engine:project PASS "the project's floppy slot reaches the reference machine"
-	else report engine:project FAIL "Main Memory differs, $(where "$work/project.mem.bin" np21) (see build/frontend/project.log)"; fi
+	# the disk named in the floppy slot, the firmware pinned by its hashes
+	rm -rf "$work/projects/project"; mkdir -p "$work/projects/project"; cp "$work/test.hdm" "$work/projects/project/"
+	p="$work/projects/project/p.chimeraProject"
+	if "$crun" --new-project "$(native_path "$p")" "$(native_path "$package")" \
+		--file "floppy=$(native_path "$work/projects/project/test.hdm")" "${PINS[@]}" --title "np2kai frontend gate" \
+		> "$work/projects/project/make.log" 2>&1; then
+		engine project "$p"
+		if same_as "$work/project.mem.bin" np21; then report engine:project PASS "the project's floppy slot reaches the reference machine"
+		else report engine:project FAIL "Main Memory differs, $(where "$work/project.mem.bin" np21) (see build/frontend/project.log)"; fi
+	else report engine:project FAIL "$(made project)"; fi
 
 	rm -rf "$work/sd" "$work/sdn"; mkdir -p "$work/sd" "$work/sdn"
-	engine savedata "$work/test.hdm" --export-savedata "$(native_path "$work/sd")"
-	engine savenone "$work/nowrite.hdm" --export-savedata "$(native_path "$work/sdn")"
+	engine savedata "$(project savedata "$work/test.hdm" "${PINS[@]}")" --export-savedata "$(native_path "$work/sd")"
+	engine savenone "$(project savenone "$work/nowrite.hdm" "${PINS[@]}")" --export-savedata "$(native_path "$work/sdn")"
 	if "$PY" - "$work/test.hdm" "$work/sd/test.hdm" <<'PY'
 import sys
 a = open(sys.argv[1], "rb").read(); b = open(sys.argv[2], "rb").read()
@@ -305,10 +329,20 @@ PY
 fi
 
 # ---- movies: a named game recorded from its key presses, then replayed ----
-gm() {	# gm <tag> <disk> <movie> [flags...]: one chimera-run process
-	local tag=$1 disk=$2 movie=$3; shift 3
+# The game stays where it is: its project is made in build/frontend and finds
+# it with --files, so no copy of a game is ever made.
+gproject() {	# gproject <name> <game> <movie> <slot> [more pins...]: prints its path
+	local name=$1 game=$2 movie=$3 slot=$4 d="$work/projects/$1"; shift 4
+	rm -rf "$d"; mkdir -p "$d"
+	"$crun" --new-project "$(native_path "$d/$name.chimeraProject")" "$(native_path "$package")" \
+		--file "$slot=$(native_path "$game")" --movie "$(native_path "$movie")" "${PINS[@]}" "$@" \
+		> "$d/make.log" 2>&1 && printf '%s' "$d/$name.chimeraProject"
+}
+gm() {	# gm <tag> <project> <game> [flags...]: one chimera-run process
+	local tag=$1 proj=$2 game=$3; shift 3
 	rm -f "${work:?}/$tag.mem.bin"
-	"$crun" "$(native_path "$package")" "$(native_path "$disk")" "$(native_path "$movie")" \
+	[ -n "$proj" ] || return 1
+	"$crun" --project "$(native_path "$proj")" "$(native_path "$package")" --files "$(native_path "$(dirname "$game")")" \
 		"${FWARGS[@]}" --dump "Main Memory=$(native_path "$work/$tag.mem.bin")" "$@" > "$work/$tag.log" 2>&1
 }
 for c in "$root"/tests/games/*.json; do
@@ -322,23 +356,28 @@ for c in "$root"/tests/games/*.json; do
 		report "movie:record:$g" SKIP "no native reference (--make-reference with NP2_GAMES where the native builds are)"
 		report "movie:replay:$g" SKIP "no native reference"; continue
 	fi
-	if [ ! -x "$crun" ] && [ ! -f "$crun" ]; then
-		report "movie:record:$g" FAIL "chimera-run not built"; report "movie:replay:$g" FAIL "chimera-run not built"; continue
+	if [ ! -f "$crun" ]; then
+		report "movie:record:$g" FAIL "chimera-run not found"; report "movie:replay:$g" FAIL "chimera-run not found"; continue
 	fi
-	gframes=$(conf_get "$c" frames); before=$(conf_get "$c" before)
+	gframes=$(conf_get "$c" frames); before=$(conf_get "$c" before); slot=$(conf_get "$c" slot)
+	gpins=(); [ "$slot" = hdd ] && gpins=(--firmware "ide.rom=$(native_path "$(fw_file ide.rom)")")
 	"$PY" "$root/tests/games/game-movie.py" "$c" "$work/$g.input.txt"
 	want=$(refhash "game-$g")
 	rm -f "${work:?}/$g.rec.txt"
-	gm "$g-rec" "$f" "$work/$g.input.txt" --record "$(native_path "$work/$g.rec.txt")" --frames "$gframes"
+	p=$(gproject "$g-rec" "$f" "$work/$g.input.txt" "$slot" "${gpins[@]}")
+	gm "$g-rec" "$p" "$f" --record "$(native_path "$work/$g.rec.txt")" --frames "$gframes"
 	entries=$(grep -c '^|' "$work/$g.rec.txt" 2>/dev/null)
 	if [ -s "$work/$g-rec.mem.bin" ] && [ "$(sha256 "$work/$g-rec.mem.bin")" = "$want" ] && [ "${entries:-0}" -eq "$gframes" ]; then
 		report "movie:record:$g" PASS "$gframes frames recorded from its key presses, Main Memory the same as the native run"
 	else
+		[ -n "$p" ] || echo "$(made "$g-rec")" >> "$work/$g-rec.log"
 		report "movie:record:$g" FAIL "memory or movie not as the native run (${entries:-0} entries; see build/frontend/$g-rec.log)"
 	fi
-	# a new process for each: the movie alone takes the machine there
-	gm "$g-play" "$f" "$work/$g.rec.txt" --final-screenshot "$(native_path "$work/$g-play.tga")"
-	gm "$g-before" "$f" "$work/$g.rec.txt" --frames "$before" --final-screenshot "$(native_path "$work/$g-before.tga")"
+	# a new process for each, from a project of the recorded movie: the movie
+	# alone takes the machine there
+	p=$(gproject "$g-play" "$f" "$work/$g.rec.txt" "$slot" "${gpins[@]}")
+	gm "$g-play" "$p" "$f" --final-screenshot "$(native_path "$work/$g-play.tga")"
+	gm "$g-before" "$p" "$f" --frames "$before" --final-screenshot "$(native_path "$work/$g-before.tga")"
 	if [ -s "$work/$g-play.mem.bin" ] && [ "$(sha256 "$work/$g-play.mem.bin")" = "$want" ] &&
 		"$PY" "$root/tests/games/check-game.py" "$c" "$work/$g-before.mem.bin" "$work/$g-play.mem.bin" "$work/$g-before.tga" "$work/$g-play.tga" > "$work/$g.check.txt" 2>&1; then
 		report "movie:replay:$g" PASS "the recorded movie replayed in a new process: the same memory, $(grep -c '^ok' "$work/$g.check.txt") screen checks hold"
@@ -348,97 +387,72 @@ for c in "$root"/tests/games/*.json; do
 	rm -f "${work:?}/$g-rec.mem.bin" "${work:?}/$g-play.mem.bin" "${work:?}/$g-before.mem.bin" "${work:?}/$g-play.tga" "${work:?}/$g-before.tga"	# the game's memory and pictures: not kept
 done
 
-# ---- the frontend: Chimera.exe, headless ------------------------------------
-xvfb_pid=""
-cleanup() { [ -n "$xvfb_pid" ] && kill "$xvfb_pid" 2>/dev/null; }
-trap cleanup EXIT
-chimera() {	# chimera <log> <args...>
-	local log=$1; shift
-	if [ "$windows" = 1 ]; then
-		( cd "$chimera_root/build" && timeout 900 ./Chimera.exe "$@" ) > "$log" 2>&1
-	else
-		( cd "$chimera_root" && MONO_CRASH_NOFILE=1 MONO_WINFORMS_XIM_STYLE=disabled ALSOFT_DRIVERS=null \
-			timeout 900 mono "$emu" "$@" ) > "$log" 2>&1
-	fi
+# ---- the window: Chimera, headless --------------------------------------------
+# Its settings, cores folder, cache and recovery files are the gate's own:
+# nothing is read from or left in a Chimera installed on this machine. Each
+# run starts from empty settings ({}), which is a fresh install: the
+# package's own bindings are the machine's.
+export ALSOFT_DRIVERS=null CHIMERA_CORES_DIR="$work/cores" CHIMERA_QT_CACHE="$work/qt-cache" \
+	CHIMERA_QT_RECOVERY="$work/qt-recovery" CHIMERA_QT_HASHES="$work/qt-file-hashes.txt" \
+	XDG_CACHE_HOME="$work/cache-home" XDG_DATA_HOME="$work/data-home"
+mkdir -p "$work/cores"
+window() {	# window <tag> <project> <script> <job lines...>: one headless run of the window
+	local tag=$1 proj=$2 script=$3 job="$work/job.$1.txt"; shift 3
+	printf '%s\n' "$@" > "$job"
+	printf '{}\n' > "$work/settings.$tag.json"
+	[ -n "$proj" ] || return 1
+	( cd "$(dirname "$emu")" && NP2_JOB="$(native_path "$job")" timeout 900 "$emu" --headless \
+		"--config=$(native_path "$work/settings.$tag.json")" "--core=$(native_path "$package")" "${FWARGS[@]}" \
+		"--project=$(native_path "$proj")" "--lua=$(native_path "$here/$script")" ) > "$work/$tag.log" 2>&1
 }
 if [ ! -f "$emu" ]; then
-	report frontend:boot FAIL "Chimera not built: $emu (dotnet build source/gui/Chimera.sln -c Release)"
-	report frontend:read FAIL "Chimera not built"
-	report frontend:keybinds FAIL "Chimera not built"
-	report lua:script FAIL "Chimera not built"
+	for leg in frontend:boot frontend:read frontend:keybinds lua:script; do report "$leg" FAIL "Chimera's window not found: $emu"; done
 else
-	if [ "$windows" = 0 ] && [ -z "${DISPLAY:-}" ]; then
-		for n in 90 91 92 93 94 95 96; do
-			if [ ! -e "/tmp/.X11-unix/X$n" ]; then
-				Xvfb ":$n" -screen 0 640x480x24 -nolisten tcp & xvfb_pid=$!
-				export DISPLAY=":$n"; break
-			fi
-		done
-		sleep 1
-	fi
-	config="$work/config.ini"
-	if [ ! -f "$config" ]; then
-		chimera "$work/bootstrap.log" --headless "--config=$(native_path "$config")" "--lua=$(native_path "$here/exit.lua")"
-		[ -f "$config" ] || echo "the config bootstrap wrote nothing (see build/frontend/bootstrap.log)"
-	fi
-	run_frontend() {	# run_frontend <tag> <config> <frames>
-		local tag=$1 cfg=$2 n=$3 job="$work/job.$1.txt"
-		printf 'frames=%s\nmeta=%s\nshot=%s\n' "$n" "$(native_path "$work/$tag.meta.txt")" "$(native_path "$work/$tag.png")" > "$job"
-		rm -f "$work/$tag.meta.txt"
-		NP2_JOB="$(native_path "$job")" chimera "$work/$tag.log" --headless "--config=$(native_path "$cfg")" \
-			"--core=$(native_path "$package")" "${FWARGS[@]}" \
-			"--lua=$(native_path "$here/frontend-ram.lua")" "$(native_path "$work/test.hdm")"
-		[ -f "$work/$tag.meta.txt" ] && grep -q '^status=OK' "$work/$tag.meta.txt"
-	}
 	want=$(refhash np21)
-	if [ ! -f "$config" ]; then
-		report frontend:boot FAIL "no config (see build/frontend/bootstrap.log)"
-		report frontend:read FAIL "no config"
-		report frontend:keybinds FAIL "no config"
-		report lua:script FAIL "no config"
+	rm -f "$work/boot.meta.txt"
+	window boot "$(project boot "$work/test.hdm" "${PINS[@]}")" frontend-ram.lua \
+		"frames=$frames" "meta=$(native_path "$work/boot.meta.txt")" "shot=$(native_path "$work/boot.png")"
+	if [ -f "$work/boot.meta.txt" ] && grep -q '^status=OK' "$work/boot.meta.txt"; then
+		got=$(sed -n 's/^ramhash=//p' "$work/boot.meta.txt" | tr -d '\r' | tr a-f A-F)
+		if [ "$got" = "$want" ]; then report frontend:boot PASS "$frames frames in Chimera, Main Memory the same as the native reference"
+		else report frontend:boot FAIL "Main Memory differs (got $got, want $want)"; fi
 	else
-		"$PY" "$here/config-edit.py" "$config" "$work/config.boot.ini"
-		if run_frontend boot "$work/config.boot.ini" "$frames"; then
-			got=$(sed -n 's/^ramhash=//p' "$work/boot.meta.txt" | tr -d '\r' | tr a-f A-F)
-			if [ "$got" = "$want" ]; then report frontend:boot PASS "$frames frames in Chimera, Main Memory the same as the native reference"
-			else report frontend:boot FAIL "Main Memory differs (got $got, want $want)"; fi
-		else
-			report frontend:boot FAIL "no OK result: $(sed -n 's/^detail=//p' "$work/boot.meta.txt" 2>/dev/null) (see build/frontend/boot.log)"
-		fi
-		# what the test disk's program left at 1FC1Dh: the BIOS's answer, 0, then
-		# its own name, as the native run left it
-		probe=$(sed -n 's/^probe=//p' "$work/boot.meta.txt" 2>/dev/null | tr -d '\r')
-		native=$("$PY" -c 'import sys; print(open(sys.argv[1], "rb").read()[0x1FC1D:0x1FC2D].hex().upper())' "$ref/np21.low.bin")
-		if [ -n "$probe" ] && [ "$probe" = "$native" ] && [ "${native#00434849}" != "$native" ]; then
-			report frontend:read PASS "memory.readbyte at 1FC1Dh: BIOS answer 0 and the disk's name, as the native run left them"
-		else report frontend:read FAIL "read '$probe', native '$native'"; fi
-		"$PY" "$here/config-edit.py" "$config" "$work/config.keys.ini" --forget "PC-98 Controller"
-		if run_frontend keys "$work/config.keys.ini" 1; then
-			if "$PY" "$here/check-keybinds.py" "$work/config.keys.ini" "$wb/default_keybinds.json" "PC-98 Controller" > "$work/keys.txt" 2>&1
-			then report frontend:keybinds PASS "$(cat "$work/keys.txt")"
-			else report frontend:keybinds FAIL "$(head -1 "$work/keys.txt")"; fi
-		else
-			report frontend:keybinds FAIL "no OK result (see build/frontend/keys.log)"
-		fi
-		# the tools: one Lua run on the counter disk, a leg for each check it makes
-		job="$work/job.tools.txt"; rm -f "$work/tools.meta.txt"
-		printf 'meta=%s\n' "$(native_path "$work/tools.meta.txt")" > "$job"
-		NP2_JOB="$(native_path "$job")" chimera "$work/tools.log" --headless "--config=$(native_path "$work/config.boot.ini")" \
-			"--core=$(native_path "$package")" "${FWARGS[@]}" \
-			"--lua=$(native_path "$here/frontend-tools.lua")" "$(native_path "$work/counter.hdm")"
-		if [ -f "$work/tools.meta.txt" ]; then
-			while IFS= read -r line; do
-				line=${line%$'\r'}
-				name=${line%%=*}; rest=${line#*=}; word=${rest%% *}; detail=${rest#* }
-				if [ "$name" = status ]; then
-					[ "$word" = OK ] || report lua:script FAIL "stopped: $detail (see build/frontend/tools.log)"
-				elif [ "$word" = INFO ]; then printf "%-20s %-5s %s\n" "lua:$name" INFO "$detail"
-				else report "lua:$name" "$word" "$detail"; fi
-			done < "$work/tools.meta.txt"
-			grep -q '^status=' "$work/tools.meta.txt" || report lua:script FAIL "the script did not finish (see build/frontend/tools.log)"
-		else
-			report lua:script FAIL "no result (see build/frontend/tools.log)"
-		fi
+		report frontend:boot FAIL "no OK result: $(sed -n 's/^detail=//p' "$work/boot.meta.txt" 2>/dev/null) (see build/frontend/boot.log)"
+	fi
+	# what the test disk's program left at 1FC1Dh: the BIOS's answer, 0, then
+	# its own name, as the native run left it
+	probe=$(sed -n 's/^probe=//p' "$work/boot.meta.txt" 2>/dev/null | tr -d '\r')
+	native=$("$PY" -c 'import sys; print(open(sys.argv[1], "rb").read()[0x1FC1D:0x1FC2D].hex().upper())' "$ref/np21.low.bin")
+	if [ -n "$probe" ] && [ "$probe" = "$native" ] && [ "${native#00434849}" != "$native" ]; then
+		report frontend:read PASS "memory.readbyte at 1FC1Dh: BIOS answer 0 and the disk's name, as the native run left them"
+	else report frontend:read FAIL "read '$probe', native '$native'"; fi
+
+	rm -f "$work/keys.meta.txt" "$work/keys.json"
+	window keys "$(project keys "$work/test.hdm" "${PINS[@]}")" frontend-keys.lua \
+		"out=$(native_path "$work/keys.json")" "meta=$(native_path "$work/keys.meta.txt")"
+	if [ -f "$work/keys.meta.txt" ] && grep -q '^status=OK' "$work/keys.meta.txt"; then
+		if "$PY" "$here/check-keybinds.py" "$work/keys.json" "$wb/default_keybinds.json" "PC-98 Controller" > "$work/keys.txt" 2>&1
+		then report frontend:keybinds PASS "$(cat "$work/keys.txt")"
+		else report frontend:keybinds FAIL "$(head -1 "$work/keys.txt")"; fi
+	else
+		report frontend:keybinds FAIL "no OK result (see build/frontend/keys.log)"
+	fi
+
+	# the tools: one Lua run on the counter disk, a leg for each check it makes
+	rm -f "$work/tools.meta.txt"
+	window tools "$(project tools "$work/counter.hdm" "${PINS[@]}")" frontend-tools.lua "meta=$(native_path "$work/tools.meta.txt")"
+	if [ -f "$work/tools.meta.txt" ]; then
+		while IFS= read -r line; do
+			line=${line%$'\r'}
+			name=${line%%=*}; rest=${line#*=}; word=${rest%% *}; detail=${rest#* }
+			if [ "$name" = status ]; then
+				[ "$word" = OK ] || report lua:script FAIL "stopped: $detail (see build/frontend/tools.log)"
+			elif [ "$word" = INFO ]; then printf "%-20s %-5s %s\n" "lua:$name" INFO "$detail"
+			else report "lua:$name" "$word" "$detail"; fi
+		done < "$work/tools.meta.txt"
+		grep -q '^status=' "$work/tools.meta.txt" || report lua:script FAIL "the script did not finish (see build/frontend/tools.log)"
+	else
+		report lua:script FAIL "no result (see build/frontend/tools.log)"
 	fi
 fi
 

@@ -642,6 +642,8 @@ static void cd_eject(void)
 
 /* ------------------------------------------------------------ the ABI */
 
+/* a key of the package's language tables (languages/en.json, written by
+ * tools/gen-config.py's CODE_TEXTS): Chimera shows it in the language in use */
 ECL_EXPORT const char *GetLoadError(void) { return g_loadError; }
 
 ECL_EXPORT int Init(void)
@@ -651,13 +653,13 @@ ECL_EXPORT int Init(void)
 	g_frame = (uint32_t *)calloc((size_t)NP2DRV_VIDEO_MAX_W * NP2DRV_VIDEO_MAX_H, 4);
 	g_audio = (int16_t *)calloc(NP2DRV_AUDIO_MAX_PAIRS * 2, sizeof *g_audio);
 	if (!g_frame || !g_audio) {
-		snprintf(g_loadError, sizeof g_loadError, "no room for the frame or sound buffers");
+		snprintf(g_loadError, sizeof g_loadError, "error.no_room_for_buffers");
 		return 0;
 	}
 
 	g_saveWindow = (uint8_t *)alloc_invisible(SAVEDATA_WINDOW);
 	if (!g_saveWindow) {
-		snprintf(g_loadError, sizeof g_loadError, "no room for the save-data window");
+		snprintf(g_loadError, sizeof g_loadError, "error.no_room_for_save_data");
 		return 0;
 	}
 
@@ -670,7 +672,7 @@ ECL_EXPORT int Init(void)
 	mousemng_initialize();
 	scrnmng_initialize();
 	if (scrnmng_create(0) != SUCCESS) {
-		snprintf(g_loadError, sizeof g_loadError, "the screen could not be made");
+		snprintf(g_loadError, sizeof g_loadError, "error.no_screen");
 		return 0;
 	}
 	soundmng_initialize();

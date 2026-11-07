@@ -48,6 +48,9 @@ rm -rf "$staging"
 mkdir -p "$staging" "$outdir"
 cp "$wbx" "$staging/core.wbx"
 cp "$here/waterbox.config" "$here/default_keybinds.json" "$here/file_slots.json" "$staging/"
+# the texts, one table per language Chimera has (tools/gen-config.py writes en.json)
+mkdir -p "$staging/languages"
+cp "$here"/languages/*.json "$staging/languages/"
 # the controller's picture (tools/draw-keyboard.py), shown beside the bindings
 mkdir -p "$staging/pictures"
 cp "$here/pictures/keyboard.png" "$staging/pictures/"

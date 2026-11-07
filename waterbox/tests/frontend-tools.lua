@@ -70,6 +70,24 @@ check("domains", function()
 	out("domains", #bad == 0, #bad == 0 and "8 domains, each its size" or table.concat(bad, ", "))
 end)
 
+-- the System Bus is listed after the domains (Chimera 2026-11-01, #456), so
+-- RAM Search, RAM Watch, the Hex Editor and scripts reach it: below 1 MB it
+-- is the conventional memory Main Memory holds, and a write through it
+-- lands there
+check("bus", function()
+	local listed = false
+	for _, name in pairs(memory.getmemorydomainlist()) do if name == "System Bus" then listed = true end end
+	if not listed then return out("bus", false, "System Bus is not in the domain list") end
+	local a = FRAMES + 8
+	local was = u8(a)
+	local same = memory.readbyte(FRAMES, "System Bus") == u8(FRAMES) and memory.readbyte(a, "System Bus") == was
+	memory.writebyte(a, (was + 0x5A) % 256, "System Bus")
+	local landed = u8(a) == (was + 0x5A) % 256
+	memory.writebyte(a, was, "System Bus")
+	out("bus", same and landed, same and landed and "System Bus listed; reads and writes are Main Memory's below 1 MB"
+		or string.format("bus read %s, write landed %s", tostring(same), tostring(landed)))
+end)
+
 -- the named domains are views of Main Memory: the same bytes both ways
 check("views", function()
 	local pairs_ = {

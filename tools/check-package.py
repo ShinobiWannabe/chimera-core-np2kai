@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """Checks a built np2kai-<id>.chimeraCore the way Chimera's contract tests do,
-for a machine with no .NET (the tests themselves are the authority:
-InstalledCorePackagesTests and MnemonicUniquenessTests, run as
-docs/new-core.md says).
+without building Chimera (the authority is Chimera's own contract test,
+build/meson-linux/source/ui/test-packages <folder>, as AGENTS.md says).
 
 What it holds the package to, each read from the Chimera checkout so a
 change there is a change here:
-  - every key a default binding names is one Chimera sends (DistinctKey and
-    DistinctKeyNameOverrides), every pad input one a game controller or a
+  - every key a default binding names is one Chimera's window sends
+    (source/ui/qt/key_codes.inc), every pad input one a game controller or a
     joystick sends, every axis bound to a mouse or stick axis, and a bound
     left or right modifier has its merged name beside it;
   - every binding names a control the controller has;
   - mnemonics are one printable character (not . or |), headers one to
     eight with no space at either end and unique;
+  - a language table for every language Chimera has, each with English's
+    keys and placeholders, and every text field of the declarations a key;
+  - runsOn lists systems of the six, one of them of core.wbx's CPU, and
+    no core tool names a file "tool" or "settings";
   - every machine is a value of the machine setting and is left with one
     declaration of each setting;
   - every setting type is one Chimera knows, every enum default one of its
@@ -45,44 +48,25 @@ lic = json.loads(z.read('licenses/licenses.json'))
 slot_ids = {sl['id'] for sl in json.loads(z.read('file_slots.json')).get('slots', [])}
 
 # ---- the names Chimera sends, from its own source ----
-src = open(chimera + '/source/gui/Chimera.Input/KeyMouseInput/DistinctKey.cs', encoding='utf-8').read()
-body = src.split('enum DistinctKey', 1)[1].split('{', 1)[1].split('}', 1)[0]
-body = re.sub(r'///.*', '', body)
-over = dict(re.findall(r'DistinctKey\.(\w+)\s*=>\s*"([^"]+)"',
-                       open(chimera + '/source/gui/Chimera.Client.Common/input/DistinctKeyNameOverrides.cs', encoding='utf-8').read()))
-# A key is sent under DistinctKeyNameOverrides' name, else the enum's
-# ToString. Two names for one value ("Enter = Return") are one key: it is
-# sent under the override when either has one, else under the later name,
-# which is what the frontend's own tests find ("PageUp = Prior" is sent as
-# PageUp), so the earlier name is never sent.
-enum, alias = [], {}
-for m in re.finditer(r'^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:=\s*([^,]+))?,', body, re.M):
-    name, value = m.group(1), (m.group(2) or '').strip()
-    if re.fullmatch(r'[A-Za-z_]\w*', value):
-        alias[value] = name
-    enum.append(name)
-keys = set()
-for k in enum:
-    if k in alias.values():
-        target = next(t for t, a in alias.items() if a == k)
-        keys.add(over.get(k) or over.get(target) or k)
-    elif k in alias:
-        continue
-    else:
-        keys.add(over.get(k, k))
+# The window's key tables (source/ui/qt/key_codes.inc: every name a key is
+# sent under, on Windows, its other layouts, Linux and macOS) and the sets
+# its contract test holds bindings to (test_packages.cpp, "the input names
+# the window sends").
+codes = open(chimera + '/source/ui/qt/key_codes.inc', encoding='utf-8').read()
+keys = set(re.findall(r'\{\s*0x[0-9A-Fa-f]+\s*,\s*"([^"]+)"\s*\}', codes))
 keys |= {"Shift", "Ctrl", "Alt", "WMouse L", "WMouse M", "WMouse R", "WMouse 1", "WMouse 2"}
-need(len(enum) > 100 and 'Number1' in keys and 'KeypadMultiply' in keys, 'could not read DistinctKey (%d names)' % len(enum))
-tests = open(chimera + '/source/gui/Chimera.Tests.Client.Common/CorePackages/InstalledCorePackagesTests.cs', encoding='utf-8').read()
+need(len(keys) > 100 and 'Number1' in keys and 'KeypadMultiply' in keys, 'could not read key_codes.inc (%d names)' % len(keys))
+tests = open(chimera + '/source/ui/viewmodel/tests/test_packages.cpp', encoding='utf-8').read()
 
 
 def string_set(name):
-    m = re.search(r'%s\s*=\s*new\(StringComparer\.Ordinal\)\s*\{(.*?)\};' % name, tests, re.S)
+    m = re.search(r'std::set<std::string>\s+%s\s*=\s*\{(.*?)\};' % name, tests, re.S)
     return set(re.findall(r'"([^"]+)"', m.group(1))) if m else set()
 
 
-pad_buttons = string_set('ControllerButtons')
-pad_axes = string_set('ControllerAxes')
-mouse_axes = string_set('MouseAxes')
+pad_buttons = string_set('controllerButtons')
+pad_axes = string_set('controllerAxes')
+mouse_axes = string_set('mouseAxes')
 need(pad_buttons and pad_axes and mouse_axes, 'could not read the test sets')
 joy_button = re.compile(r'^([XYZWVSQPN][+-]|Axis\d+[+-]|B\d+|POV\d+[UDLR])$')
 joy_axis = re.compile(r'^([XYZWVSQPN]|Axis\d+) Axis$')
@@ -117,6 +101,60 @@ for ctl, table in binds.get('AllTrollersAnalog', {}).items():
                 ok = part in mouse_axes
             need(ok, '%s: %s is no axis' % (axis, part))
 
+# ---- where it runs, and its tools' files (Chimera 2026-11-05, 2026-11-02) ----
+SYSTEMS = {'windows-x86_64', 'windows-aarch64', 'linux-x86_64', 'linux-aarch64', 'macos-x86_64', 'macos-aarch64'}
+runs_on = cfg.get('runsOn')
+need(isinstance(runs_on, list) and runs_on, "it does not say where it runs ('runsOn')")
+for r in runs_on or []:
+    need(r in SYSTEMS, "'runsOn' lists %r, which is not one of the six" % r)
+wbx = z.read('core.wbx')[:20] if 'core.wbx' in files else b''
+cpu = {62: 'x86_64', 183: 'aarch64'}.get(int.from_bytes(wbx[18:20], 'little')) if len(wbx) == 20 else None
+need(cpu is None or any(r.endswith('-' + cpu) for r in runs_on or []),
+     "core.wbx is built for %s, and 'runsOn' lists no system of it" % cpu)
+for t in cfg.get('tools', []):
+    for lst in ('inputs', 'outputs'):
+        for f in t.get(lst, []):
+            need(f.get('name') not in ('tool', 'settings'),
+                 "tool %r names a file %r, the name of a file Chimera gives every tool" % (t.get('id'), f.get('name')))
+
+# ---- the texts: a table for every language Chimera has, each with
+# English's keys, and every text field a key (Chimera docs/translations.md) ----
+import glob, os
+codes = sorted(os.path.basename(f)[:-5] for f in glob.glob(chimera + '/languages/*.json'))
+need(len(codes) >= 26, 'could not read Chimera\'s languages (%d)' % len(codes))
+tables = {}
+for code in codes:
+    name = 'languages/%s.json' % code
+    if name not in files:
+        problems.append(name + ' is not in the package')
+        continue
+    tables[code] = json.loads(z.read(name)).get('texts', {})
+en = tables.get('en', {})
+PH = re.compile(r'%[1-9n]')
+for code, t in tables.items():
+    if code == 'en':
+        continue
+    for k in sorted(set(en) - set(t)):
+        problems.append('%s: %s: missing' % (code, k))
+    for k in sorted(set(t) - set(en)):
+        problems.append('%s: %s: not an English key' % (code, k))
+    for k in set(en) & set(t):
+        if sorted(PH.findall(en[k])) != sorted(PH.findall(t[k])):
+            problems.append('%s: %s: placeholders differ from English' % (code, k))
+        for noun in ('Chimera', 'Windows', 'Linux', cfg.get('coreName', 'NP2kai')):
+            if noun in en[k] and noun not in t[k]:
+                problems.append('%s: %s: %s is not there as itself' % (code, k, noun))
+fields = []
+for s_ in cfg['settings']:
+    fields += [s_.get('display'), s_.get('description')] + list((s_.get('optionLabels') or {}).values())
+for f_ in cfg['firmware']:
+    fields += [f_.get('display'), f_.get('description'), f_.get('label')]
+for sl in json.loads(z.read('file_slots.json')).get('slots', []):
+    fields += [sl.get('title'), sl.get('help'), sl.get('nameHelp')]
+for v in fields:
+    if v:
+        need(v.split('\x1f')[0] in en, 'a text field is not a key of languages/en.json: %r' % v[:60])
+
 # ---- mnemonics and headers ----
 def bare(n):
     head, _, rest = n.partition(' ')
@@ -139,7 +177,7 @@ for a in inp['axes']:
 types = {'bool', 'string', 'float', 'enum', 'int', 'uint', 'long', 'ulong', 'datetime'}
 settings = {s['name']: s for s in cfg['settings']}
 # the machines: the setting that picks them, and one declaration of each
-# setting a machine is left with ("when" lists, InstalledCorePackagesTests)
+# setting a machine is left with ("when" lists, Chimera's contract test)
 machines = cfg.get('machines') or []
 if machines:
     ms = settings.get(cfg.get('machineSetting'))

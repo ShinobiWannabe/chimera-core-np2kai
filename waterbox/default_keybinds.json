@@ -1,11 +1,12 @@
 {
   "_comment": [
     "Default bindings for the PC-98: the keyboard as NP2kai's SDL2 build maps",
-    "a PC keyboard (sdl/kbtrans.c), except GRPH on Alt and NFER and XFER on a",
-    "Japanese keyboard's own keys; the mouse on the host mouse, the joystick",
-    "on the game pad; KANA on Ctrl+ScrollLock. vf.3-vf.5, the underscore,",
-    "keypad = and , the drive controls and Reset ship unbound. Written by",
-    "tools/gen-config.py."
+    "a PC keyboard (sdl/kbtrans.c), except GRPH on Alt; the mouse on the host",
+    "mouse, the joystick on the game pad; KANA on Ctrl+ScrollLock; NFER and",
+    "XFER on Alt+Comma and Alt+Period (Chimera names no key for henkan and",
+    "muhenkan). vf.3-vf.5, the underscore, keypad = and , the drive controls",
+    "and Reset ship unbound.",
+    "Written by tools/gen-config.py."
   ],
   "AllTrollers": {
     "PC-98 Controller": {
@@ -90,9 +91,9 @@
       "Key CAPS": "CapsLock",
       "Key KANA": "Ctrl+ScrollLock",
       "Key GRPH": "Alt, LeftAlt",
-      "Key NFER": "ImeNonConvert",
+      "Key NFER": "Alt+Comma",
       "Key SPACE": "Space",
-      "Key XFER": "ImeConvert",
+      "Key XFER": "Alt+Period",
       "Key Up": "Up",
       "Key Down": "Down",
       "Key Left": "Left",

@@ -32,12 +32,23 @@ mkdir -p "$obj"
 # -mno-red-zone: see miniBox docs/RED-ZONE.md. -fno-gnu-unique makes C++'s
 # one-per-program statics weak, which a half can make local (see "both"). The thread_local defines make
 # the few thread-local variables plain ones: the guest has one thread.
+# -mno-tls-direct-seg-refs is in miniBox's frozen x86-64 flags since 3848e4e
+# (an Intel Mac patches thread-pointer loads, never an access at an offset
+# from %fs); with no thread locals it changes no code.
 GCCVER=$(gcc -dumpfullversion)
-GUEST="-specs $SR/lib/musl-gcc.specs -fvisibility=hidden -mcmodel=large -mno-red-zone \
+GUEST="-specs $SR/lib/musl-gcc.specs -fvisibility=hidden -mcmodel=large -mno-red-zone -mno-tls-direct-seg-refs \
  -mstack-protector-guard=global -fno-stack-protector -fno-pic -fno-pie \
  -fcf-protection=none -DCHIMERA_GUEST -Dthread_local= -D_Thread_local= -D__thread= \
  -I$MB/extern/emulibc -I$MB/source/guest/include -I$MB/extern/jsmn"
 GUESTCXX="$GUEST -fexceptions -fno-gnu-unique -I$SR/include/c++/$GCCVER -I$SR/include/c++/$GCCVER/x86_64-linux-musl"
+
+# miniBox's guest link recipe ends with wbx-tp-rewrite.py on the image: on
+# x86-64 it lists where the code loads the thread pointer, for an Intel Mac,
+# and leaves an image with no thread locals (this one) as it is.
+tp_rewrite() {
+  [ -f "$MB/source/guest/wbx-tp-rewrite.py" ] || return 0
+  python3 "$MB/source/guest/wbx-tp-rewrite.py" "$1" || { echo "wbx-tp-rewrite.py failed on $1"; return 1; }
+}
 
 if [ "$FLAVOUR" = both ]; then
   out=${NP2_OUT:-$root/build/wbx-both}
@@ -58,6 +69,7 @@ if [ "$FLAVOUR" = both ]; then
      "$MBB/source/guest/cxxglue.c.o" "$MBB/source/guest/emulibc.c.o" \
      -L"$SR/lib" -lstdc++ -lgcc -lgcc_eh -lc 2>"$out/errors.log" || { echo "link failed; see $out/errors.log"; exit 1; }
   echo "OK: $out/core.wbx"
+  tp_rewrite "$out/core.wbx" || exit 1
   sh "$MB/source/guest/check-wbx.sh" "$out/core.wbx" || { echo "check-wbx.sh reported problems"; exit 1; }
   exit 0
 fi
@@ -111,4 +123,5 @@ g++ $GUESTCXX -o "$out/core.wbx" $objs \
    "$MBB/source/guest/cxxglue.c.o" "$MBB/source/guest/emulibc.c.o" \
    -L"$SR/lib" -lstdc++ -lgcc -lgcc_eh -lc 2>>"$out/errors.log" || { echo "link failed; see $out/errors.log"; exit 1; }
 echo "OK: $out/core.wbx"
+tp_rewrite "$out/core.wbx" || exit 1
 sh "$MB/source/guest/check-wbx.sh" "$out/core.wbx" || { echo "check-wbx.sh reported problems"; exit 1; }

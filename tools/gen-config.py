@@ -479,6 +479,8 @@ EXTENSIONS = {e: MACHINES[0][0] for e in (
     ".hdb", ".ddb", ".dd6", ".dd9", ".flp", ".fim", ".dip",
     ".hdi", ".nhd", ".thd", ".vhd", ".slh", ".hdn", ".hds")}
 
+RUNS_ON = ["windows-x86_64", "linux-x86_64", "macos-x86_64"]
+
 CONFIG = {
     "coreName": "NP2kai",
     "systemId": MACHINES[0][0],
@@ -487,6 +489,10 @@ CONFIG = {
     "url": "https://github.com/ShinobiWannabe/chimera-core-np2kai",
     "romFile": "rom",
     "deterministic": True,
+    # Where the package runs (Chimera 2026-11-05, docs/porting-a-core.md):
+    # Chimera refuses a package that lists none. core.wbx is built for
+    # x86_64 only, and has been run on Windows and Linux.
+    "runsOn": RUNS_ON,
     "memoryLayoutMiB": [256, 16, 16, 16, 1024],
     "video": {
         "_comment": "the BUFFER capacity (np2-driver.h); the live size comes from GetVideoWidth/Height every frame. The rate here is the default Monitor's; the core reports the chosen one from GetVsyncNumerator/Denominator.",
@@ -518,6 +524,116 @@ CONFIG = {
     "firmware": FIRMWARE,
 }
 
+# ---- the texts: keys of the package's language tables ---------------------
+# Chimera shows a package's texts in the language in use (its
+# docs/translations.md, owner 2026-10-28): every text field of the
+# declarations holds a key of languages/<code>.json, and the English is
+# written here, in languages/en.json. The other 25 tables are kept by hand
+# (translated from en.json); this says which keys each lacks or has extra.
+EN = {}
+
+
+def snake(name):
+    return re.sub(r'[^a-z0-9]+', '_', re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', name).lower()).strip('_')
+
+
+def key_for(base, text):
+    """base, or base_2, _3... when base already holds another English text
+    (a setting declared once per machine, each with its own words)"""
+    k, n = base, 1
+    while k in EN and EN[k] != text:
+        n += 1
+        k = '%s_%d' % (base, n)
+    EN[k] = text
+    return k
+
+
+# option values that are words get labels, so they are shown in the
+# language in use; the values themselves (what a project records) stay
+OPTION_LABELS = {
+    'soundBoard': {'None': 'None'},
+    'rhythmSamples': {'WAV files': 'WAV files', 'YM2608 ROM': 'YM2608 ROM'},
+    'floppiesAtStart': {'Drives 1 and 2': 'Drives 1 and 2', 'Drive 1 only': 'Drive 1 only', 'None': 'None'},
+    'pciBus': {'Off': 'Off', 'On': 'On', 'On with BIOS32': 'On with BIOS32'},
+}
+for st in SETTINGS:
+    if st['name'] in OPTION_LABELS:
+        assert set(OPTION_LABELS[st['name']]) <= set(st['options']), st['name']
+        st['optionLabels'] = dict(OPTION_LABELS[st['name']])
+for st in SETTINGS:
+    b = 'setting.' + snake(st['name'])
+    st['display'] = key_for(b, st['display'])
+    if st.get('description'):
+        st['description'] = key_for(b + '.about', st['description'])
+    if st.get('optionLabels'):
+        st['optionLabels'] = {v: key_for(b + '.option.' + snake(str(v)), t) for v, t in st['optionLabels'].items()}
+for fw in FIRMWARE:
+    b = 'firmware.' + snake(fw['id'])
+    for field, suffix in (('display', ''), ('description', '.about'), ('label', '.label')):
+        if fw.get(field):
+            fw[field] = key_for(b + suffix, fw[field])
+
+# SLOT_TEXTS: the English of file_slots.json's title, help and nameHelp,
+# which that file holds as keys (slot.<id>, slot.<id>.help, .name_help)
+SLOT_TEXTS = {
+    "floppy": {
+        "title": "Floppy disks",
+        "help": "Floppy disk images (.d88, .fdi, .hdm, .nfd, .dcp, .fdd, .hd4 and the other PC-98 formats). The first is in drive 1 and the second in drive 2 when the machine starts. The order here is the order the Previous, Next and Swap Floppy Disk inputs go through. What the machine writes to a disk stays for the session and can be exported as save data."
+    },
+    "hdd": {
+        "title": "Hard disks",
+        "help": "Hard disk images (.hdi, .nhd, .thd, .vhd or SL9821's .slh). The first is the first hard disk (IDE on the PC9821 machine, SASI on the PC98 one), the one the machine starts from when no floppy is in drive 1. What the machine writes stays for the session and can be exported as save data, and an exported image can be given here to continue from it."
+    },
+    "scsi": {
+        "title": "SCSI hard disks",
+        "help": "Hard disks on a PC-9801-55 SCSI board, which the machine gets when this list has a disk: Virtual98 .hdd, RaSCSI .hdn and .hds, or .hdi, .nhd and .vhd. The first is SCSI ID 0, the next ID 1 and so on. The machine starts from the first SCSI disk when no floppy is in a drive and there is no IDE or SASI hard disk. What the machine writes stays for the session and can be exported as save data."
+    },
+    "cdrom": {
+        "title": "CD-ROMs",
+        "help": "CD-ROM images for the IDE CD-ROM drive, which only the PC9821 machine has: a .cue sheet with its track files (one .bin for the whole disc or one per track), an .iso, or a MAME .chd (made with chdman createcd). The first is in the drive when the machine starts; the CD Previous, Next, Swap and Eject Disc inputs change it, in the order listed here. A CloneCD .ccd can be converted to .cue and .bin first. A PC-98 cannot start from a CD, so a CD game also needs its boot floppy or a hard disk with its driver."
+    }
+}
+
+with open(os.path.join(WB, 'file_slots.json'), encoding='utf-8') as f:
+    SLOTS = json.load(f)
+for sl in SLOTS['slots']:
+    for field, suffix in (('title', ''), ('help', '.help'), ('nameHelp', '.name_help')):
+        if field in SLOT_TEXTS[sl['id']]:
+            sl[field] = key_for('slot.' + snake(sl['id']) + suffix, SLOT_TEXTS[sl['id']][field])
+with open(os.path.join(WB, 'file_slots.json'), 'w', encoding='utf-8') as f:
+    json.dump(SLOTS, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+
+# what the driver returns while it runs (GetLoadError, waterbox/np2-driver.c)
+CODE_TEXTS = {
+    "error.no_room_for_buffers": "There is no room in the core's memory for the picture or the sound.",
+    "error.no_room_for_save_data": "There is no room in the core's memory for the save data.",
+    "error.no_screen": "The core could not make the machine's screen.",
+}
+for k, t in CODE_TEXTS.items():
+    EN[k] = t
+
+for k, t in EN.items():
+    assert re.fullmatch(r'[a-z][a-z0-9_]*(\.[a-z0-9_]+)+', k), k
+    # a % before a digit is one of Chimera's %1..%9
+    assert not re.search(r'%[0-9n]', t), (k, t)
+LANG = os.path.join(WB, 'languages')
+os.makedirs(LANG, exist_ok=True)
+with open(os.path.join(LANG, 'en.json'), 'w', encoding='utf-8') as f:
+    json.dump({"texts": dict(sorted(EN.items()))}, f, indent='\t', ensure_ascii=False)
+    f.write('\n')
+for name in sorted(os.listdir(LANG)):
+    if name == 'en.json' or not name.endswith('.json'):
+        continue
+    with open(os.path.join(LANG, name), encoding='utf-8') as f:
+        have = json.load(f).get('texts', {})
+    lack, extra = sorted(set(EN) - set(have)), sorted(set(have) - set(EN))
+    if lack or extra:
+        print('languages/%s: %d keys missing%s, %d not English keys%s' % (
+            name, len(lack), (' (' + ', '.join(lack[:5]) + (', ...' if len(lack) > 5 else '') + ')') if lack else '',
+            len(extra), (' (' + ', '.join(extra[:5]) + ')') if extra else ''))
+print('languages/en.json written: %d texts' % len(EN))
+
 with open(os.path.join(WB, 'waterbox.config'), 'w', encoding='utf-8') as f:
     json.dump(CONFIG, f, indent=2, ensure_ascii=False)
     f.write('\n')
@@ -531,12 +647,19 @@ print('waterbox.config written: %d buttons, %d settings, %d firmware, vsync %d/%
 # Except the modifiers: a default setup sends either Shift as Shift, either
 # Ctrl as Ctrl and either Alt as Alt (chimera docs/new-core.md), so the
 # right-hand Ctrl and Alt the SDL build gives GRPH and XFER could never
-# reach them. GRPH is Alt instead, and NFER and XFER are the Japanese
-# keyboard's own keys (muhenkan and henkan). STOP is Shift+Pause and vf.1
+# reach them. GRPH is Alt instead. NFER and XFER are Alt+Comma and
+# Alt+Period (owner, 2026-11-07: defaults that work on a Mac too): Chimera's
+# window names no key for a Japanese keyboard's muhenkan and henkan (its
+# key tables, source/ui/qt/key_codes.inc, have neither), a default that
+# names a key nothing sends fails Chimera's contract test, and a Mac has no
+# spare key beside Space (both Options are one "Alt" by default, Command is
+# the system's). Comma and Period sit left and right as NFER and XFER do,
+# Option+key is free on a Mac, and Alt+Comma / Alt+Period are no Chimera
+# hotkey or menu key. GRPH (Alt) is held with them. STOP is Shift+Pause and vf.1
 # and vf.2 Ctrl+F11 and Ctrl+F12, clear of Chimera's Pause and Screenshot
 # hotkeys.
 # KANA is Ctrl+ScrollLock (owner, 2026-10-31: a combination of its own). The
-# frontend sends a Japanese keyboard's kana key as "HangulMode", a name
+# frontend sends a Japanese keyboard's kana key as "HanjaMode", a name
 # nobody would look for, and Scroll Lock is bound to nothing else and is no
 # Chimera hotkey, alone or with Ctrl. KANA locks (np2-driver.c), so a tap
 # of the combination turns kana on and Ctrl is let go before typing.
@@ -554,9 +677,9 @@ HOST = {
     'Key Comma': 'Comma', 'Key Period': 'Period', 'Key Slash': 'Slash',
     'Key Right SHIFT': 'RightShift', 'Key Left': 'Left', 'Key Right': 'Right',
     'Key CAPS': 'CapsLock', 'Key GRPH': 'Alt, LeftAlt',
-    'Key NFER': 'ImeNonConvert',
-    'Key SPACE': 'Space', 'Key XFER': 'ImeConvert', 'Key Down': 'Down',
+    'Key SPACE': 'Space', 'Key Down': 'Down',
     'Key vf.1': 'Ctrl+F11', 'Key vf.2': 'Ctrl+F12', 'Key KANA': 'Ctrl+ScrollLock',
+    'Key NFER': 'Alt+Comma', 'Key XFER': 'Alt+Period',
     'Key Pad Period': 'KeypadDecimal',
     'Mouse Left Button': 'WMouse L', 'Mouse Right Button': 'WMouse R',
     # the arrows are the keyboard's, so the stick is on the game pad only
@@ -582,11 +705,12 @@ assert len(used) == len(set(used)), 'a host key is bound twice'
 KEYBINDS = {
     "_comment": [
         "Default bindings for the PC-98: the keyboard as NP2kai's SDL2 build maps",
-        "a PC keyboard (sdl/kbtrans.c), except GRPH on Alt and NFER and XFER on a",
-        "Japanese keyboard's own keys; the mouse on the host mouse, the joystick",
-        "on the game pad; KANA on Ctrl+ScrollLock. vf.3-vf.5, the underscore,",
-        "keypad = and , the drive controls and Reset ship unbound. Written by",
-        "tools/gen-config.py.",
+        "a PC keyboard (sdl/kbtrans.c), except GRPH on Alt; the mouse on the host",
+        "mouse, the joystick on the game pad; KANA on Ctrl+ScrollLock; NFER and",
+        "XFER on Alt+Comma and Alt+Period (Chimera names no key for henkan and",
+        "muhenkan). vf.3-vf.5, the underscore, keypad = and , the drive controls",
+        "and Reset ship unbound.",
+        "Written by tools/gen-config.py.",
     ],
     "AllTrollers": {"PC-98 Controller": binds},
     "AllTrollersAutoFire": {"PC-98 Controller": {}},
