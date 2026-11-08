@@ -481,6 +481,23 @@ EXTENSIONS = {e: MACHINES[0][0] for e in (
 
 RUNS_ON = ["windows-x86_64", "linux-x86_64", "macos-x86_64"]
 
+# The controls TAStudio's piano roll shows when a project has none of its
+# own yet; every other column starts hidden (Chimera issue 544,
+# docs/porting-a-core.md "tastudioColumns"). The list is CHM's (2026-11-07, joystick added 2026-11-08).
+# Without it Chimera hides every "Key ..." control, nearly the whole keyboard.
+TASTUDIO_COLUMNS = (
+    ["Key ESC", "Key TAB", "Key SHIFT", "Key Z", "Key X", "Key C", "Key V",
+     "Key Up", "Key Down", "Key Left", "Key Right"]
+    + ["Key Pad %d" % n for n in range(1, 10)]
+    + ["Key SPACE", "Key RETURN", "Key HELP", "Key STOP",
+       "Drive 1 Next Floppy Disk", "Drive 1 Swap Floppy Disk",
+       "Drive 2 Next Floppy Disk", "Drive 2 Swap Floppy Disk", "Reset"]
+    + ["P1 Joystick " + j for j in ("Up", "Down", "Left", "Right", "Button 1", "Button 2")]
+)
+
+assert all(c in names for c in TASTUDIO_COLUMNS), \
+    [c for c in TASTUDIO_COLUMNS if c not in names]
+
 CONFIG = {
     "coreName": "NP2kai",
     "systemId": MACHINES[0][0],
@@ -510,6 +527,7 @@ CONFIG = {
         "headers": {n: h for n, h, _ in BUTTONS if len(h) > 1},
         "axes": AXES,
         "picture": "pictures/keyboard.png",
+        "tastudioColumns": TASTUDIO_COLUMNS,
         "_axes_note": "The mouse's movement this frame, in the bus mouse's counts. NP2kai's mouse is relative only (user-decided, 2026-10-23).",
     },
     # a disk opened with no project goes to the IA-32 machine, which runs

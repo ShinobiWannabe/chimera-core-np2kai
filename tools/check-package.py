@@ -10,6 +10,7 @@ change there is a change here:
     joystick sends, every axis bound to a mouse or stick axis, and a bound
     left or right modifier has its merged name beside it;
   - every binding names a control the controller has;
+  - every tastudioColumns name is one of the input's buttons or axes;
   - mnemonics are one printable character (not . or |), headers one to
     eight with no space at either end and unique;
   - a language table for every language Chimera has, each with English's
@@ -172,6 +173,14 @@ long_headers = list(inp.get('headers', {}).values())
 need(len(long_headers) == len(set(long_headers)), 'two columns share a header')
 for a in inp['axes']:
     need(1 <= len(a.get('header', '')) <= 5, 'bad axis header on ' + a['name'])
+
+# ---- TAStudio's first columns (Chimera issue 544) ----
+# every name one of the input's buttons or axes, as test_packages refuses
+controls = set(inp['buttons']) | {a['name'] for a in inp['axes']}
+cols = inp.get('tastudioColumns', [])
+need(isinstance(cols, list) and all(isinstance(c, str) for c in cols), 'tastudioColumns is not a list of names')
+for c in cols:
+    need(c in controls, 'tastudioColumns names no control: %s' % c)
 
 # ---- settings and firmware ----
 types = {'bool', 'string', 'float', 'enum', 'int', 'uint', 'long', 'ulong', 'datetime'}
