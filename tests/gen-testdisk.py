@@ -20,8 +20,10 @@ With --hdd the counter is instead the first sector of a small hard disk
 (.nhd, 20 cylinders x 8 heads x 17 sectors of 512 bytes): the leg that
 boots a hard disk with the real IDE BIOS looks for its frame count. With
 --hdd --no-boot that sector is left empty, the control that boots nothing.
+With --hdd --big the disk has 8193 cylinders (544 MiB, written sparse): more
+sectors than the real IDE BIOS can reach, so NP2kai's stand-in boots it.
 
-usage: gen-testdisk.py [--no-write | --counter | --rhythm | --hdd [--no-boot]] <out>
+usage: gen-testdisk.py [--no-write | --counter | --rhythm | --hdd [--no-boot] [--big]] <out>
 """
 import struct
 import sys
@@ -168,17 +170,22 @@ counter = "--counter" in args
 rhythm = "--rhythm" in args
 hdd = "--hdd" in args
 no_boot = "--no-boot" in args
-args = [a for a in args if a not in ("--no-write", "--counter", "--rhythm", "--hdd", "--no-boot")]
-if len(args) != 1 or no_write + counter + rhythm + hdd > 1 or (no_boot and not hdd):
+big = "--big" in args
+args = [a for a in args if a not in ("--no-write", "--counter", "--rhythm", "--hdd", "--no-boot", "--big")]
+if len(args) != 1 or no_write + counter + rhythm + hdd > 1 or ((no_boot or big) and not hdd):
     sys.exit(__doc__)
 if hdd:
     # T98-Next's .nhd: its signature, a comment, then the geometry
-    cyl, heads, secs, size = 20, 8, 17, 512
+    # (--big: 8193 x 8 x 17 sectors, past the 17 x 65536 the real IDE BIOS
+    # can divide; port/ideio-bios-reach.c)
+    cyl, heads, secs, size = 8193 if big else 20, 8, 17, 512
     head = b"T98HDDIMAGE.R0\0\0" + bytes(0x100) + struct.pack("<IIHHH", 512, cyl, heads, secs, size)
-    image = bytearray(cyl * heads * secs * size)
+    first = bytearray(size)
     if not no_boot:
-        image[:len(COUNTER)] = COUNTER
-    open(args[0], "wb").write(head + bytes(512 - len(head)) + image)
+        first[:len(COUNTER)] = COUNTER
+    with open(args[0], "wb") as f:
+        f.write(head + bytes(512 - len(head)) + first)
+        f.truncate(512 + cyl * heads * secs * size)
     sys.exit(0)
 ipl = bytearray(COUNTER if counter else RHYTHM if rhythm else IPL)
 assert counter or rhythm or ipl[INT_1BH:INT_1BH + 2] == b"\xcd\x1b"

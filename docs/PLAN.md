@@ -726,7 +726,12 @@ always; not done. With a hard disk the real IDE BIOS also needs
 BIOS work byte 0457h filled (which units are there, 512-byte sectors),
 which NP2kai leaves 0: `waterbox/port/bios-ide-units.c` fills it (issue
 #27; until fcbd6ba the file was asked for as `ide.rom` but mounted as
-`IDE.ROM`, so the stand-in ran every hard disk). Gate and frontend check take the firmware from
+`IDE.ROM`, so the stand-in ran every hard disk). The real IDE BIOS reaches
+only the first 17 x 65536 sectors (544 MiB): it divides a sector number by
+17 in 16 bits, and past that the divide error's IRET runs the DIV again for
+ever. A hard disk with more sectors gets the stand-in
+(`waterbox/port/ideio-bios-reach.c`), as does one whose geometry is not 8
+heads x 17 sectors (NP2kai's autoidebios). Gate and frontend check take the firmware from
 `NP2_FIRMWARE`; the frontend reference keeps only the memory below C0000h,
 so no ROM is in it. Use the same setting
 names and descriptions as the DOSBox-X core where the meaning is the same
@@ -1610,3 +1615,12 @@ Each entry gives the issue, what happened, and what this core does about it.
   submodule, extern/libchdr, built with its own flags (np2-flags.sh). A
   CHD reads back as the bin/cue it was made from, byte for byte (gate leg
   "CHD", tests/chd-cd.c and tests/gen-chd-src.py).
+- 2026-11-09: the real IDE BIOS's 544 MiB limit. Windows 2000 on a 2 GB
+  8 x 17 disk stopped at its first boot from the disk with a black screen:
+  the loader's INT 1Bh read of sector 1F8088h made the BIOS's DIV by 17
+  (D800:0770) overflow, and the divide error's vector, a bare IRET, sent
+  the 386 back to the same DIV. The ROM's own limit, not the emulation's.
+  waterbox/port/ideio-bios-reach.c compiles cbus/ideio.c with its ide.rom
+  lookup finding nothing while a hard disk of more than 17 x 65536 sectors
+  is attached, so NP2kai's stand-in runs it. New gate leg "real IDE BIOS
+  reach" (tests/gen-testdisk.py --hdd --big).

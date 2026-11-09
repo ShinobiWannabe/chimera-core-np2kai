@@ -49,6 +49,7 @@ DROP_EXACT = {
     'io/serial.c', 'io/mouseif.c',  # built through waterbox/port/keyboard-reads.c and mouseif-reads.c
     'bios/bios18.c',           # built through waterbox/port/bios18-reads.c
     'bios/bios.c',             # built through waterbox/port/bios-ide-units.c
+    'cbus/ideio.c',            # built through waterbox/port/ideio-bios-reach.c
     'calendar.c',              # built through waterbox/port/calendar-time.c
     'sound/tms3631c.c',        # built through waterbox/port/tms3631-pitch.c
     'cbus/boardlol.c',         # built through waterbox/port/boardlol-fixed.c

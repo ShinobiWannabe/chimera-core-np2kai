@@ -267,6 +267,22 @@ PY
 	if [ "${hb:-0}" -gt 0 ] && [ "${hn:-1}" -eq 0 ]; then
 		ok "real IDE BIOS: the hard disk boots and its program counts $hb frames; the control with no boot sector counts none"
 	else bad "real IDE BIOS: the hard disk's program counted '$hb' frames, the control '$hn'"; fi
+
+	# ---- leg: a disk too big for the real IDE BIOS gets the stand-in -------
+	# The real IDE BIOS divides a sector number by 17 in 16 bits and hangs on
+	# any sector from 17 x 65536 on (port/ideio-bios-reach.c), so a disk with
+	# more sectors than that boots with NP2kai's stand-in: the counter, on a
+	# disk of 8193 cylinders, counts frames, and with ide.rom taken away the
+	# run and the memory at the end are the same.
+	db=$(folder ide-big); python3 "$root/tests/gen-testdisk.py" --hdd --big "$db/c.nhd"; echo '{"hdd":["c.nhd"]}' > "$db/slots"
+	"$runwbx" "$wbx" "$db" "$frames" /dev/null "$work/ide-big.mem" 2>/dev/null | lines > "$work/ide-big.ref"
+	dc=$(folder ide-big-noide); rm -f "$dc/ide.rom"; python3 "$root/tests/gen-testdisk.py" --hdd --big "$dc/c.nhd"; cp "$db/slots" "$dc/"
+	"$runwbx" "$wbx" "$dc" "$frames" /dev/null "$work/ide-big-noide.mem" 2>/dev/null | lines > "$work/ide-big.no"
+	hg=$(hdd_frames "$work/ide-big.mem")
+	if [ "${hg:-0}" -gt 0 ] && [ "$(wc -l < "$work/ide-big.ref")" -eq "$frames" ] && cmp -s "$work/ide-big.ref" "$work/ide-big.no" && cmp -s "$work/ide-big.mem" "$work/ide-big-noide.mem"; then
+		ok "real IDE BIOS reach: a disk past 17 x 65536 sectors boots with the stand-in (counts $hg frames; without ide.rom the same)"
+	else bad "real IDE BIOS reach: the big disk counted '$hg' frames, or ide.rom changed the run"; fi
+	rm -rf "${db:?}" "${dc:?}"
 	dh=$(folder used-ref); python3 "$root/tests/gen-testdisk.py" --rhythm "$dh/rhythm.hdm"
 	echo '{"floppy":["rhythm.hdm"]}' > "$dh/slots"
 	[ -n "$rom" ] && cp "$rom" "$dh/ym2608_adpcm_rom.bin"
