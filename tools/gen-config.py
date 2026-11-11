@@ -337,6 +337,18 @@ SETTINGS = [
             "takes to move, which NP2kai ties to the sound, so it changes "
             "how long disk access takes. Off by default, as in NP2kai. " + MACHINE,
             "bool", False),
+    # the calls at memory (Chimera issues 496 and 534; waterbox/port/memwatch.c):
+    # picks the machine's watch half (np2-entry.c), which runs the same
+    # machine, frame for frame, a few per cent slower
+    setting("luaMemoryEvents", "Lua Memory Events",
+            "Lets Lua scripts stop at memory the machine runs, reads or writes "
+            "(event.on_bus_exec, on_bus_read and on_bus_write), by System Bus "
+            "address, and change the values read or written. It uses a copy of "
+            "the CPU that checks every instruction and memory access, a few per "
+            "cent slower, so it is off by default. The machine runs the same "
+            "either way, so a movie plays back the same with any value. Takes "
+            "effect when the machine starts.",
+            "bool", False),
     setting("volumeMaster", "Master Volume",
             "Every sound of the machine together, in per cent. The default, 100, is NP2kai's (out of 100). Only the sound changes, "
             "never what the machine does, so a movie plays back the same "

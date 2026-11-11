@@ -58,6 +58,8 @@
 		"setting.font_file.about": "PC-98의 문자가 들어 있는 파일입니다. 문자 ROM 덤프인 FONT.ROM이나 일부 에뮬레이터가 쓰는 이미지 형식인 FONT.BMP 중 하나가 필요하며, 없으면 기계가 글자를 표시하지 않습니다. 기계의 일부이므로 movie에는 같은 값이 필요합니다.",
 		"setting.gdc_type": "GDC 종류",
 		"setting.gdc_type.about": "기계의 그래픽 표시 컨트롤러 칩입니다. 기본값인 uPD7220은 초기 칩이고, 후기 기계의 uPD72020은 일부 그래픽 모드를 다르게 그리며 몇몇 게임은 여기에 의존합니다. 기계의 일부이므로 movie에는 같은 값이 필요합니다.",
+		"setting.lua_memory_events": "Lua 메모리 이벤트",
+		"setting.lua_memory_events.about": "머신이 실행하거나 읽거나 쓰는 메모리에서 Lua 스크립트가 멈출 수 있게 합니다(event.on_bus_exec, on_bus_read, on_bus_write). 주소는 System Bus 기준이며, 읽거나 쓰는 값을 바꿀 수도 있습니다. 모든 명령과 메모리 접근을 확인하는 CPU 사본을 사용해 몇 퍼센트 느려지므로 기본값은 꺼짐입니다. 어느 쪽이든 머신은 똑같이 동작하므로 movie는 어떤 값에서도 똑같이 재생됩니다. 머신이 시작될 때 적용됩니다.",
 		"setting.machine": "기계",
 		"setting.machine.about": "PC-98의 CPU입니다. PC9821은 NP2kai의 IA-32 빌드(np21kai)로, PC-9801부터 Windows 시대의 PC-9821까지 모두 실행하며 IDE 하드 디스크와 CD-ROM 드라이브가 있습니다. PC98은 286 빌드(np2kai)로, 286을 단 예전 PC-9801이며 SASI 하드 디스크가 있고 CD-ROM 드라이브는 없습니다. 일부 오래된 소프트웨어는 이쪽에서만 제대로 동작합니다. 기계의 일부이므로 movie에는 같은 값이 필요합니다.",
 		"setting.machine.option.pc98": "NEC PC-9801, 286 CPU",

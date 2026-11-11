@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Berkas mana yang memuat karakter PC-98: FONT.ROM, dump ROM karakter, atau FONT.BMP, bentuk gambar yang dipakai beberapa emulator. Salah satunya diperlukan: tanpanya mesin tidak menampilkan teks. Ini bagian dari mesin, jadi sebuah movie memerlukan nilai yang sama.",
 		"setting.gdc_type": "Jenis GDC",
 		"setting.gdc_type.about": "Chip pengendali tampilan grafis mana yang dimiliki mesin. uPD7220, bawaannya, adalah chip yang lebih awal; uPD72020 pada mesin yang lebih baru menggambar beberapa mode grafis secara berbeda, dan beberapa game bergantung pada hal itu. Ini bagian dari mesin, jadi sebuah movie memerlukan nilai yang sama.",
+		"setting.lua_memory_events": "Peristiwa memori Lua",
+		"setting.lua_memory_events.about": "Memungkinkan skrip Lua berhenti pada memori yang dijalankan, dibaca, atau ditulis mesin (event.on_bus_exec, on_bus_read, dan on_bus_write), menurut alamat System Bus, dan mengubah nilai yang dibaca atau ditulis. Ini memakai salinan CPU yang memeriksa setiap instruksi dan setiap akses memori, beberapa persen lebih lambat, jadi bawaannya mati. Mesin berjalan sama dalam kedua keadaan, jadi movie diputar sama dengan nilai apa pun. Berlaku saat mesin dinyalakan.",
 		"setting.machine": "Mesin",
 		"setting.machine.about": "Prosesor apa yang dimiliki PC-98. PC9821 adalah build IA-32 NP2kai (np21kai), yang menjalankan semuanya dari PC-9801 hingga PC-9821 era Windows, dengan hard disk IDE dan drive CD-ROM. PC98 adalah build 286-nya (np2kai), PC-9801 lama dengan 286, dengan hard disk SASI dan tanpa drive CD-ROM; sebagian perangkat lunak lama hanya berjalan benar di sana. Ini bagian dari mesin, jadi sebuah movie memerlukan nilai yang sama.",
 		"setting.machine.option.pc98": "NEC PC-9801, prosesor 286",

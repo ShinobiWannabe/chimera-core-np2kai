@@ -22,6 +22,7 @@
  */
 #include "minibox.h"
 #include "press-script.h"
+#include "watch-script.h"
 
 #include <dirent.h>
 #include <stdint.h>
@@ -87,6 +88,14 @@ static uintptr_t MB_GUEST_ABI count_poll(uintptr_t a, uintptr_t b, uintptr_t c, 
 	g_polls++;
 	return 0;
 }
+
+/* NP2_WATCH (watch-script.h): the engine's memory callback, slot 4 */
+static uintptr_t MB_GUEST_ABI watch_called(uintptr_t a, uintptr_t b, uintptr_t c, uintptr_t d, uintptr_t e, uintptr_t f)
+{
+	return watch_note(a, b, c, d, e, f);
+}
+typedef int32_t  (MB_GUEST_ABI *addwfn)(int32_t, int32_t, uint64_t);
+typedef void     (MB_GUEST_ABI *remwfn)(int32_t, int32_t, uint64_t);
 
 static uintptr_t proc(mb_host *h, const char *name)
 {
@@ -172,6 +181,11 @@ int main(int argc, char **argv)
 		wbx_get_callback_addr(h, count_poll, 3, &r); die(&r, "callback");
 		((void (MB_GUEST_ABI *)(uint64_t))proc(h, "SetInputPollCallback"))((uint64_t)r.data);
 	}
+	if (!watch_load()) return 2;
+	if (g_watchCount) {
+		wbx_get_callback_addr(h, watch_called, 4, &r); die(&r, "memory callback");
+		((void (MB_GUEST_ABI *)(uint64_t))proc(h, "SetMemoryCallback"))((uint64_t)r.data);
+	}
 	if (!((intfn)proc(h, "Init"))()) {
 		char why[256];
 		const char *msg = ((strfn)proc(h, "GetLoadError"))();
@@ -200,6 +214,8 @@ int main(int argc, char **argv)
 		set1fn SetRendering = (set1fn)proc(h, "SetRenderingEnabled");
 		intfn DriveCount = (intfn)proc(h, "GetDriveCount");
 		i32ifn DriveLight = (i32ifn)proc(h, "GetDriveLight");
+		addwfn AddWatch = g_watchCount ? (addwfn)proc(h, "AddMemoryWatch") : NULL;
+		remwfn RemoveWatch = g_watchCount ? (remwfn)proc(h, "RemoveMemoryWatch") : NULL;
 		long offFrom = -1, offTo = -1;
 		long stateAt = getenv("NP2_STATE_AT") ? atol(getenv("NP2_STATE_AT")) : -1;
 		if (getenv("NP2_NORENDER")) sscanf(getenv("NP2_NORENDER"), "%ld,%ld", &offFrom, &offTo);
@@ -213,6 +229,7 @@ int main(int argc, char **argv)
 			if (n == offFrom) SetRendering(0);
 			if (n == offTo) SetRendering(1);
 			PRESS_APPLY(n, SetButton, SetAxis);
+			if (g_watchCount) WATCH_APPLY(n, AddWatch, RemoveWatch);
 			FrameAdvance(0);
 			wbx_get_death(h, why, sizeof why, &r);
 			if (r.data) { fprintf(stderr, "the guest died at frame %ld: %s\n", n, why); return 3; }
@@ -293,6 +310,8 @@ int main(int argc, char **argv)
 			else printf("BUS BAD %s at %llx\n", why, (unsigned long long)bad);
 		}
 		if (getenv("NP2_POLLS")) printf("POLLS %ld\n", g_polls);
+		if (g_watchCount)
+			WATCH_REPORT(((strfn)proc(h, "GetMemoryCallbackScopes"))(), ((intfn)proc(h, "GetMemoryCallbackReplaceable"))());
 		if (getenv("NP2_MEDIA")) {
 			/* what each floppy drive holds and its selector is on, and the
 			 * domains the tools hide */

@@ -58,6 +58,8 @@
 		"setting.font_file.about": "PC-98'in karakterlerini hangi dosyanın tuttuğu: karakter ROM'unun dökümü olan FONT.ROM ya da bazı öykünücülerin kullandığı görüntü biçimi FONT.BMP. Bunlardan biri gerekir: o olmadan makine hiç metin göstermez. Makinenin bir parçasıdır, bu yüzden bir movie aynı değeri gerektirir.",
 		"setting.gdc_type": "GDC türü",
 		"setting.gdc_type.about": "Makinenin hangi grafik ekran denetleyici yongasına sahip olduğu. Varsayılan uPD7220 daha eski yongadır; sonraki makinelerin uPD72020'si bazı grafik modlarını farklı çizer ve birkaç oyun buna dayanır. Makinenin bir parçasıdır, bu yüzden bir movie aynı değeri gerektirir.",
+		"setting.lua_memory_events": "Lua bellek olayları",
+		"setting.lua_memory_events.about": "Lua betiklerinin makinenin çalıştırdığı, okuduğu veya yazdığı bellekte durmasını (event.on_bus_exec, on_bus_read ve on_bus_write), System Bus adresine göre, ve okunan ya da yazılan değerleri değiştirmesini sağlar. Her komutu ve her bellek erişimini denetleyen, yüzde birkaç daha yavaş bir CPU kopyası kullanır, bu yüzden varsayılan olarak kapalıdır. Makine iki durumda da aynı çalışır, bu yüzden bir movie her değerle aynı oynatılır. Makine başlarken etkili olur.",
 		"setting.machine": "Makine",
 		"setting.machine.about": "PC-98'in hangi işlemciye sahip olduğu. PC9821, NP2kai'nin IA-32 yapısıdır (np21kai); PC-9801'den Windows dönemi PC-9821'e kadar her şeyi, IDE sabit diskler ve bir CD-ROM sürücüsüyle çalıştırır. PC98 onun 286 yapısıdır (np2kai): 286'lı eski PC-9801, SASI sabit diskler ve CD-ROM sürücüsü olmadan; bazı eski yazılımlar yalnızca bunda doğru çalışır. Makinenin bir parçasıdır, bu yüzden bir movie aynı değeri gerektirir.",
 		"setting.machine.option.pc98": "NEC PC-9801, 286 işlemci",

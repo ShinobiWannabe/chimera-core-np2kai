@@ -3,7 +3,8 @@
 # host, no sandbox. It is where the core is debugged (gdb, printf), and what
 # the gate compares the sandboxed core against.
 #
-# Usage: build-native.sh [np21|np2]     (default np21, the IA-32 machine)
+# Usage: build-native.sh [np21|np2|np21w|np2w]     (default np21, the IA-32
+# machine; a w names the same with the calls at memory, np2-flags.sh)
 # Output: build/native-<flavour>/run-native
 #   NP2_OUT=dir      build somewhere else (the gate's negative controls)
 #   NP2_EXTRA="..."  more flags for the driver only, e.g. -DNP2DRV_HOST_CLOCK
@@ -19,7 +20,7 @@ out=${NP2_OUT:-$root/build/native-$FLAVOUR}
 obj=$out/obj
 mkdir -p "$obj"
 
-SOURCES=$(python3 "$root/tools/sources.py" "$NP2" "$FLAVOUR" | sed "s|^|$NP2/|")
+SOURCES=$(python3 "$root/tools/sources.py" "$NP2" "$NP2_BASE" $NP2_WATCH_BUILD | sed "s|^|$NP2/|")
 SOURCES="$SOURCES $(ls "$PORT"/*.c "$PORT"/*.cpp 2>/dev/null) $here/np2-driver.c $here/run-native.c $LIBCHDR/unity.c $LIBCHDR/src/libchdr_codec_avhuff.c"
 
 # The guest kit's headers (settings, slots, ECL_EXPORT) work natively too.

@@ -1336,8 +1336,9 @@ Each entry gives the issue, what happened, and what this core does about it.
   game controller as well as keys.
 - **#341, #113 (memory callbacks in Lua).** No Chimera core can stop part
   way through a frame, so Lua's `on_bus_read` and similar do not work. **For
-  this core:** none are offered; the input-poll call (section 6) is the only
-  call during a frame.
+  this core:** since Chimera's #496 and #534 (2026-11) they are offered, on
+  the System Bus, when the setting Lua Memory Events is on; see
+  docs/memory-events.md.
 
 ### Disks, discs and swapping
 

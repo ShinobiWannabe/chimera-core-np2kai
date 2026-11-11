@@ -23,7 +23,15 @@ boots a hard disk with the real IDE BIOS looks for its frame count. With
 With --hdd --big the disk has 8193 cylinders (544 MiB, written sparse): more
 sectors than the real IDE BIOS can reach, so NP2kai's stand-in boots it.
 
-usage: gen-testdisk.py [--no-write | --counter | --rhythm | --hdd [--no-boot] [--big]] <out>
+With --paging (the IA-32 machine only) the boot sector turns on protected
+mode and paging, with the first 4 MiB mapped as they are but for linear
+0x50000, which is physical 0x60000. Each frame it adds one to the double
+word at linear 0x50010 (a read, then a write, through the TLB) and calls a
+routine copied to linear 0x50100, which adds one to linear 0x50014: for the
+calls at memory (waterbox/port/memwatch.c), which must report physical
+addresses, 0x60010 and 0x60100, and never the linear ones.
+
+usage: gen-testdisk.py [--no-write | --counter | --rhythm | --paging | --hdd [--no-boot] [--big]] <out>
 """
 import struct
 import sys
@@ -164,15 +172,100 @@ RHYTHM = bytes.fromhex(
     "203f010801080208004348494d455241204e50324b41492052485954484d"
     "205445535400")
 
+# --paging, assembled (nasm -f bin) from:
+#	bits 16
+#	org 0
+#	start:	cli
+#		mov ax, cs
+#		mov ds, ax
+#		mov ax, 0x3000		; page directory at 0x30000: one table
+#		mov es, ax
+#		xor di, di
+#		xor eax, eax
+#		mov cx, 1024
+#		cld
+#		rep stosd
+#		mov dword [es:0], 0x31003
+#		mov ax, 0x3100		; the table at 0x31000: the first 4 MiB as they are
+#		mov es, ax
+#		xor di, di
+#		mov eax, 3
+#		mov cx, 1024
+#	pt:	stosd
+#		add eax, 0x1000
+#		loop pt
+#		mov dword [es:0x50*4], 0x60003	; but linear 0x50000 is physical 0x60000
+#		mov ax, 0x6000
+#		mov es, ax
+#		mov si, routine		; the routine at physical 0x60100 (linear 0x50100)
+#		mov di, 0x100
+#		mov cx, routine_end - routine
+#		rep movsb
+#		xor eax, eax
+#		mov [es:0x10], eax	; the counters at physical 0x60010 and 0x60014
+#		mov [es:0x14], eax
+#		mov eax, cs
+#		shl eax, 4
+#		add eax, gdt
+#		mov [gdtr + 2], eax
+#		lgdt [gdtr]
+#		mov eax, 0x30000
+#		mov cr3, eax
+#		mov eax, cr0
+#		or eax, 0x80000001	; protected mode and paging
+#		mov cr0, eax
+#		db 0x66, 0xea		; jmp dword 0x08:0x1fc00+pm
+#		dd 0x1fc00 + pm
+#		dw 0x08
+#	bits 32
+#	pm:	mov ax, 0x10
+#		mov ds, ax
+#		mov es, ax
+#		mov ss, ax
+#		mov esp, 0x70000
+#	frame:	in al, 0x60		; wait for the vertical blank to start
+#		test al, 0x20
+#		jnz frame
+#	vb:	in al, 0x60
+#		test al, 0x20
+#		jz vb
+#		mov eax, [0x50010]	; a read and a write through the TLB
+#		inc eax
+#		mov [0x50010], eax
+#		mov ebx, 0x50100
+#		call ebx		; run code in the remapped page
+#		jmp frame
+#	routine: inc dword [0x50014]
+#		ret
+#	routine_end:
+#	align 8
+#	gdt:	dq 0
+#		dq 0x00cf9a000000ffff
+#		dq 0x00cf92000000ffff
+#	gdtr:	dw 23
+#		dd 0
+#		db "CHIMERA NP2KAI PAGING TEST", 0
+PAGING = bytes.fromhex(
+    "fa8cc88ed8b800308ec031ff6631c0b90004fcf366ab2666c706000003100300"
+    "b800318ec031ff66b803000000b9000466ab660500100000e2f62666c7064001"
+    "03000600b800608ec0bec300bf0001b90700f3a46631c02666a310002666a314"
+    "00668cc866c1e0046605d000000066a3ea000f0116e80066b8000003000f22d8"
+    "0f20c0660d010000800f22c066ea94fc0100080066b810008ed88ec08ed0bc00"
+    "000700e460a82075fae460a82074faa11000050040a310000500bb00010500ff"
+    "d3ebe0ff0514000500c39090909090900000000000000000ffff0000009acf00"
+    "ffff00000092cf001700000000004348494d455241204e50324b414920504147"
+    "494e47205445535400")
+
 args = sys.argv[1:]
 no_write = "--no-write" in args
 counter = "--counter" in args
 rhythm = "--rhythm" in args
+paging = "--paging" in args
 hdd = "--hdd" in args
 no_boot = "--no-boot" in args
 big = "--big" in args
-args = [a for a in args if a not in ("--no-write", "--counter", "--rhythm", "--hdd", "--no-boot", "--big")]
-if len(args) != 1 or no_write + counter + rhythm + hdd > 1 or ((no_boot or big) and not hdd):
+args = [a for a in args if a not in ("--no-write", "--counter", "--rhythm", "--paging", "--hdd", "--no-boot", "--big")]
+if len(args) != 1 or no_write + counter + rhythm + paging + hdd > 1 or ((no_boot or big) and not hdd):
     sys.exit(__doc__)
 if hdd:
     # T98-Next's .nhd: its signature, a comment, then the geometry
@@ -187,8 +280,8 @@ if hdd:
         f.write(head + bytes(512 - len(head)) + first)
         f.truncate(512 + cyl * heads * secs * size)
     sys.exit(0)
-ipl = bytearray(COUNTER if counter else RHYTHM if rhythm else IPL)
-assert counter or rhythm or ipl[INT_1BH:INT_1BH + 2] == b"\xcd\x1b"
+ipl = bytearray(COUNTER if counter else RHYTHM if rhythm else PAGING if paging else IPL)
+assert counter or rhythm or paging or ipl[INT_1BH:INT_1BH + 2] == b"\xcd\x1b"
 if no_write:
     ipl[INT_1BH:INT_1BH + 2] = b"\x90\x90"
 image = bytearray(SIZE)

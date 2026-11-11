@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Welk bestand de tekens van de PC-98 bevat: FONT.ROM, een dump van de tekenset-ROM, of FONT.BMP, de afbeeldingsvorm die sommige emulators gebruiken. Een van beide is nodig: zonder toont de machine geen tekst. Het hoort bij de machine, dus een movie heeft dezelfde waarde nodig.",
 		"setting.gdc_type": "GDC-type",
 		"setting.gdc_type.about": "Welke grafische displaycontrollerchip de machine heeft. De uPD7220, de standaard, is de eerdere chip; de uPD72020 van latere machines tekent sommige grafische modi anders, waarop enkele spellen rekenen. Het hoort bij de machine, dus een movie heeft dezelfde waarde nodig.",
+		"setting.lua_memory_events": "Lua-geheugengebeurtenissen",
+		"setting.lua_memory_events.about": "Laat Lua-scripts stoppen bij geheugen dat de machine uitvoert, leest of schrijft (event.on_bus_exec, on_bus_read en on_bus_write), op System Bus-adres, en de gelezen of geschreven waarden veranderen. Het gebruikt een kopie van de CPU die elke instructie en elke geheugentoegang controleert, enkele procenten trager, dus het staat standaard uit. De machine werkt in beide gevallen hetzelfde, dus een movie speelt met elke waarde hetzelfde af. Gaat in wanneer de machine start.",
 		"setting.machine": "Machine",
 		"setting.machine.about": "Welke CPU de PC-98 heeft. PC9821 is de IA-32-build van NP2kai (np21kai), die alles draait van de PC-9801 tot de PC-9821 uit het tijdperk van Windows, met harde schijven op IDE en een cd-romstation. PC98 is de 286-build (np2kai), de oudere PC-9801 met een 286, harde schijven op SASI en geen cd-romstation; sommige oude software draait alleen daarop goed. Het hoort bij de machine, dus een movie heeft dezelfde waarde nodig.",
 		"setting.machine.option.pc98": "NEC PC-9801, 286-CPU",

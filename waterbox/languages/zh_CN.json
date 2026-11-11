@@ -58,6 +58,8 @@
 		"setting.font_file.about": "哪个文件包含 PC-98 的字符：FONT.ROM（字符 ROM 的转储）或 FONT.BMP（部分模拟器使用的图像形式）。必须有其中之一：没有它，机器不会显示文字。它是机器的一部分，因此 movie 需要相同的值。",
 		"setting.gdc_type": "GDC 类型",
 		"setting.gdc_type.about": "机器使用哪种图形显示控制器芯片。默认的 uPD7220 是较早的芯片；后期机器的 uPD72020 绘制某些图形模式的方式不同，少数游戏依赖这一点。它是机器的一部分，因此 movie 需要相同的值。",
+		"setting.lua_memory_events": "Lua 内存事件",
+		"setting.lua_memory_events.about": "让 Lua 脚本在机器执行、读取或写入的内存处停下（event.on_bus_exec、on_bus_read 和 on_bus_write），地址按 System Bus 计，并可更改读取或写入的值。它使用会检查每条指令和每次内存访问的 CPU 副本，慢几个百分点，因此默认关闭。两种情况下机器的运行都相同，因此 movie 在任何值下都会同样回放。在机器启动时生效。",
 		"setting.machine": "机器",
 		"setting.machine.about": "PC-98 使用哪种处理器。PC9821 是 NP2kai 的 IA-32 版本（np21kai），可运行从 PC-9801 到 Windows 时代 PC-9821 的一切软件，配有 IDE 硬盘和 CD-ROM 驱动器。PC98 是其 286 版本（np2kai），即较早的 286 PC-9801，配有 SASI 硬盘，没有 CD-ROM 驱动器；部分老软件只有在它上面才能正确运行。它是机器的一部分，因此 movie 需要相同的值。",
 		"setting.machine.option.pc98": "NEC PC-9801，286 处理器",

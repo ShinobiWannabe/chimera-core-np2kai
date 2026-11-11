@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Który plik zawiera znaki PC-98: FONT.ROM, zrzut ROM-u znaków, albo FONT.BMP, postać obrazu używana przez niektóre emulatory. Potrzebny jest jeden z nich: bez niego maszyna nie wyświetla tekstu. Jest częścią maszyny, więc movie wymaga tej samej wartości.",
 		"setting.gdc_type": "Typ GDC",
 		"setting.gdc_type.about": "Jaki układ sterownika wyświetlania grafiki ma maszyna. uPD7220, domyślny, to wcześniejszy układ; uPD72020 z późniejszych maszyn rysuje niektóre tryby graficzne inaczej, na czym polega kilka gier. Jest częścią maszyny, więc movie wymaga tej samej wartości.",
+		"setting.lua_memory_events": "Zdarzenia pamięci Lua",
+		"setting.lua_memory_events.about": "Pozwala skryptom Lua zatrzymywać się na pamięci, którą maszyna wykonuje, odczytuje lub zapisuje (event.on_bus_exec, on_bus_read i on_bus_write), według adresu System Bus, i zmieniać odczytywane lub zapisywane wartości. Używa kopii CPU, która sprawdza każdą instrukcję i każdy dostęp do pamięci, o kilka procent wolniejszej, dlatego domyślnie jest wyłączone. Maszyna działa tak samo w obu przypadkach, więc movie odtwarza się tak samo przy każdej wartości. Działa od uruchomienia maszyny.",
 		"setting.machine": "Maszyna",
 		"setting.machine.about": "Jaki procesor ma PC-98. PC9821 to kompilacja IA-32 NP2kai (np21kai), uruchamiająca wszystko od PC-9801 po PC-9821 z ery Windows, z dyskami twardymi IDE i stacją CD-ROM. PC98 to jego kompilacja 286 (np2kai), starszy PC-9801 z procesorem 286, z dyskami twardymi SASI i bez stacji CD-ROM; część starego oprogramowania działa poprawnie tylko na niej. Jest częścią maszyny, więc movie wymaga tej samej wartości.",
 		"setting.machine.option.pc98": "NEC PC-9801, procesor 286",

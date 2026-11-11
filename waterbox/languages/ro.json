@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Ce fișier conține caracterele PC-98: FONT.ROM, o copie a ROM-ului de caractere, sau FONT.BMP, forma de imagine pe care o folosesc unele emulatoare. Este nevoie de unul dintre ele: fără el mașina nu afișează text. Face parte din mașină, deci un movie are nevoie de aceeași valoare.",
 		"setting.gdc_type": "Tipul GDC",
 		"setting.gdc_type.about": "Ce cip de control al afișajului grafic are mașina. uPD7220, cel implicit, este cipul mai vechi; uPD72020 al mașinilor ulterioare desenează unele moduri grafice altfel, pe care se bazează câteva jocuri. Face parte din mașină, deci un movie are nevoie de aceeași valoare.",
+		"setting.lua_memory_events": "Evenimente de memorie Lua",
+		"setting.lua_memory_events.about": "Permite scripturilor Lua să se oprească la memoria pe care mașina o execută, o citește sau o scrie (event.on_bus_exec, on_bus_read și on_bus_write), după adresa din System Bus, și să schimbe valorile citite sau scrise. Folosește o copie a CPU-ului care verifică fiecare instrucțiune și fiecare acces la memorie, cu câteva procente mai lentă, de aceea este oprit implicit. Mașina rulează la fel în ambele cazuri, deci un movie se redă la fel cu orice valoare. Se aplică la pornirea mașinii.",
 		"setting.machine": "Mașină",
 		"setting.machine.about": "Ce procesor are PC-98. PC9821 este versiunea IA-32 a NP2kai (np21kai), care rulează totul de la PC-9801 la PC-9821 din era Windows, cu discuri dure IDE și o unitate CD-ROM. PC98 este versiunea sa 286 (np2kai), vechiul PC-9801 cu un 286, cu discuri dure SASI și fără unitate CD-ROM; unele programe vechi rulează corect doar pe ea. Face parte din mașină, deci un movie are nevoie de aceeași valoare.",
 		"setting.machine.option.pc98": "NEC PC-9801, procesor 286",

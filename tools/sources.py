@@ -8,11 +8,15 @@ section 3 says the sandbox cannot have: the platform layer (sdl/, replaced
 by waterbox/port/), the on-screen menu, host folders, the network card,
 threads, host tick counters, MIDI synthesis and the GPL parts.
 
-Usage: sources.py <NP2kai tree> <np2|np21>
+With "watch", the files the calls at memory (Chimera issues 496 and 534,
+waterbox/port/memwatch.c) compile through waterbox/port/ instead.
+
+Usage: sources.py <NP2kai tree> <np2|np21> [watch]
 """
 import glob, os, re, sys
 
 tree, flavour = sys.argv[1], sys.argv[2]
+watch = sys.argv[3:] == ['watch']
 mk = open(os.path.join(tree, 'sdl', 'Makefile.common')).read().replace('\\\n', ' ')
 mk = mk.replace('$(NP2_PATH)/', '')
 mk = re.sub(r'\$\(wildcard\s+([^)]*)\)', r'\1', mk)
@@ -64,7 +68,15 @@ DROP_EXACT = {
     # the drums from the YM2608's ROM as well as the WAV files
     'sound/rhythmc.c',         # built through waterbox/port/rhythm-rom.c
     'sound/fmgen/fmgen_file.cpp',  # built through waterbox/port/fmgen-file-rom.cpp
+    'trap/steptrap.c', 'trap/inttrap.c',  # ENABLE_TRAP's logs to the host (waterbox/port/trap/ in a watch build)
 }
+if watch:
+    DROP_EXACT |= {
+        'i386c/cpumem.c', 'i286c/cpumem.c',  # built through waterbox/port/cpumem-watch.c
+        'i386c/ia32/paging.c',     # built through waterbox/port/paging-watch.c
+        'i286c/i286c_mn.c', 'i286c/i286c_f6.c', 'i286c/i286c_fe.c',
+        'i286c/v30patch.c',        # built through waterbox/port/cpu286-*.c
+    }
 # Upstream's CMake build has these and sdl/Makefile.common forgot them; the
 # 118 board's ADPCM needs them. They are NP2kai's own code.
 EXTRA = ['sound/ymzadpcmc.c', 'sound/ymzadpcmg.c']

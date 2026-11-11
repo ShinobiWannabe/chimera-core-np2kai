@@ -5,13 +5,15 @@
 # The same sources and the same np2-flags.sh as build-native.sh, so the two
 # builds differ only in the C library and the code model.
 #
-# Usage: build-guest.sh [np21|np2|both]     (default np21, the IA-32 machine)
+# Usage: build-guest.sh [np21|np2|np21w|np2w|both]     (default np21, the IA-32 machine)
 # Output: build/wbx-<flavour>/core.wbx
 #
 # "both" is the package's core (docs/PLAN.md section 10): the np21 and np2
-# builds each linked into one relocatable half, with their driver's exports
-# renamed np21_* and np2_* (np2-half.h) and every hidden symbol made local,
-# then np2-entry.c on top to pick the half the machine setting names.
+# builds, and np21w and np2w (the same with the calls at memory,
+# np2-flags.sh), each linked into one relocatable half, with their driver's
+# exports renamed np21_*, np2_*, np21w_* and np2w_* (np2-half.h) and every
+# hidden symbol made local, then np2-entry.c on top to pick the half the
+# machine and luaMemoryEvents settings name.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/.." && pwd)
@@ -53,15 +55,16 @@ tp_rewrite() {
 if [ "$FLAVOUR" = both ]; then
   out=${NP2_OUT:-$root/build/wbx-both}
   mkdir -p "$out/obj"
-  for f in np21 np2; do
+  for f in np21 np2 np21w np2w; do
     NP2_HALF_BUILD=1 NP2_OUT= sh "$0" "$f" || exit 1
   done
   gcc $GUEST -O2 $NP2_ZEROINIT -c "$here/np2-entry.c" -o "$out/obj/np2-entry.o" || exit 1
   # A name both halves still define would be one function for two machines:
   # only the renamed exports may be global, and those differ by prefix.
-  dup=$(for f in np21 np2; do nm -g --defined-only "$root/build/wbx-$f/half.o" | awk '{print $3}' | grep -v "^${f}_"; done | sort | uniq -d)
+  dup=$(for f in np21 np2 np21w np2w; do nm -g --defined-only "$root/build/wbx-$f/half.o" | awk '{print $3}' | grep -v "^${f}_"; done | sort | uniq -d)
   [ -z "$dup" ] || { echo "both halves define:"; echo "$dup"; exit 1; }
   g++ $GUESTCXX -o "$out/core.wbx" "$out/obj/np2-entry.o" "$root/build/wbx-np21/half.o" "$root/build/wbx-np2/half.o" \
+     "$root/build/wbx-np21w/half.o" "$root/build/wbx-np2w/half.o" \
      -static -no-pie -Wl,--eh-frame-hdr,-O2,--no-relax \
      -T "$MB/source/guest/linkscript.T" \
      -Wl,-u,pthread_once -Wl,-u,pthread_cond_wait \
@@ -74,7 +77,7 @@ if [ "$FLAVOUR" = both ]; then
   exit 0
 fi
 
-SOURCES=$(python3 "$root/tools/sources.py" "$NP2" "$FLAVOUR" | sed "s|^|$NP2/|")
+SOURCES=$(python3 "$root/tools/sources.py" "$NP2" "$NP2_BASE" $NP2_WATCH_BUILD | sed "s|^|$NP2/|")
 SOURCES="$SOURCES $(ls "$PORT"/*.c "$PORT"/*.cpp 2>/dev/null) $here/np2-driver.c $LIBCHDR/unity.c $LIBCHDR/src/libchdr_codec_avhuff.c"
 
 COMMON="-O2 -fno-strict-aliasing $NP2_DEFINES $NP2_INCLUDES"

@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Tệp nào chứa các ký tự của PC-98: FONT.ROM, bản trích xuất ROM ký tự, hoặc FONT.BMP, dạng ảnh mà một số trình giả lập dùng. Cần một trong hai: không có nó máy không hiển thị chữ. Đây là một phần của máy, nên một movie cần cùng giá trị.",
 		"setting.gdc_type": "Loại GDC",
 		"setting.gdc_type.about": "Máy có chip điều khiển hiển thị đồ họa nào. uPD7220, mặc định, là chip đời trước; uPD72020 của các máy sau vẽ một số chế độ đồ họa khác đi, điều mà vài trò chơi dựa vào. Đây là một phần của máy, nên một movie cần cùng giá trị.",
+		"setting.lua_memory_events": "Sự kiện bộ nhớ Lua",
+		"setting.lua_memory_events.about": "Cho phép script Lua dừng tại bộ nhớ mà máy chạy, đọc hoặc ghi (event.on_bus_exec, on_bus_read và on_bus_write), theo địa chỉ System Bus, và thay đổi giá trị được đọc hoặc ghi. Tùy chọn này dùng một bản sao của CPU kiểm tra mọi lệnh và mọi lần truy cập bộ nhớ, chậm hơn vài phần trăm, nên mặc định là tắt. Máy chạy như nhau trong cả hai trường hợp, nên movie phát lại như nhau với mọi giá trị. Có hiệu lực khi máy khởi động.",
 		"setting.machine": "Máy",
 		"setting.machine.about": "PC-98 có bộ xử lý nào. PC9821 là bản dựng IA-32 của NP2kai (np21kai), chạy mọi thứ từ PC-9801 đến PC-9821 thời Windows, với ổ cứng IDE và ổ CD-ROM. PC98 là bản dựng 286 của nó (np2kai), PC-9801 cũ hơn dùng 286, với ổ cứng SASI và không có ổ CD-ROM; một số phần mềm cũ chỉ chạy đúng trên nó. Đây là một phần của máy, nên một movie cần cùng giá trị.",
 		"setting.machine.option.pc98": "NEC PC-9801, bộ xử lý 286",

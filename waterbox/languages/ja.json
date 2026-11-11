@@ -58,6 +58,8 @@
 		"setting.font_file.about": "PC-98 の文字が入っているファイルです。FONT.ROM（文字 ROM の吸い出し）か FONT.BMP（一部のエミュレーターが使う画像形式）のどちらかが必要で、ないとマシンは文字を表示しません。マシンの一部なので、movie には同じ値が必要です。",
 		"setting.gdc_type": "GDC の種類",
 		"setting.gdc_type.about": "マシンのグラフィック表示コントローラーチップです。既定の uPD7220 は初期のチップで、後期のマシンの uPD72020 は一部のグラフィックモードを違う形で描き、それに頼るゲームもあります。マシンの一部なので、movie には同じ値が必要です。",
+		"setting.lua_memory_events": "Lua メモリイベント",
+		"setting.lua_memory_events.about": "マシンが実行・読み取り・書き込みするメモリで Lua スクリプトを止められるようにします（event.on_bus_exec、on_bus_read、on_bus_write）。アドレスは System Bus のもので、読み書きされる値を変えることもできます。すべての命令とメモリアクセスを確かめる CPU のコピーを使うため数パーセント遅くなり、既定ではオフです。どちらでもマシンの動作は同じなので、movie はどの値でも同じように再生されます。マシンの起動時に反映されます。",
 		"setting.machine": "マシン",
 		"setting.machine.about": "PC-98 の CPU です。PC9821 は NP2kai の IA-32 版（np21kai）で、PC-9801 から Windows 時代の PC-9821 まですべてを動かし、IDE ハードディスクと CD-ROM ドライブを持ちます。PC98 は 286 版（np2kai）で、286 を積んだ古い PC-9801 です。SASI ハードディスクを持ち、CD-ROM ドライブはありません。古いソフトの中にはこちらでしか正しく動かないものがあります。マシンの一部なので、movie には同じ値が必要です。",
 		"setting.machine.option.pc98": "NEC PC-9801、286 CPU",

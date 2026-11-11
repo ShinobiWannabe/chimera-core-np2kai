@@ -29,6 +29,13 @@
 #                      sees, registers, keys from joypad.set, memory states
 #                      and frame events (what RAM Search, RAM Watch and
 #                      scripts stand on); lua:callbacks is said as INFO
+#   mem21:<check>, mem2:<check>  frontend-memory.lua on the counter disk with
+#                      the setting Lua Memory Events, on each machine: the
+#                      scope, event.on_bus_write / on_bus_read / on_bus_exec /
+#                      on_bus_exec_any at the frame counter, the registers
+#                      inside a call, a write replaced by the script
+#   memoff:refused     the same disk without the setting: no scopes, and
+#                      on_bus_write is refused
 #   movie:record:<g>   a named game (tests/games/<g>.json, found by sha1 in
 #                      NP2_GAMES) recorded through chimera-run from its key
 #                      presses reaches the native run's memory
@@ -454,6 +461,33 @@ else
 	else
 		report lua:script FAIL "no result (see build/frontend/tools.log)"
 	fi
+fi
+
+# ---- the window: Lua memory events (Chimera issues 496 and 534) -----------
+memleg() {	# memleg <tag> <expect on|off> [chimera-run --new-project options...]
+	local tag=$1 expect=$2 p; shift 2
+	rm -f "$work/$tag.meta.txt"
+	p=$(project "$tag" "$work/counter.hdm" "${PINS[@]}" "$@")
+	[ -n "$p" ] || { report "$tag:script" FAIL "$(made "$tag")"; return; }
+	window "$tag" "$p" frontend-memory.lua "meta=$(native_path "$work/$tag.meta.txt")" "expect=$expect" "tag=$tag"
+	if [ -f "$work/$tag.meta.txt" ]; then
+		while IFS= read -r line; do
+			line=${line%$'\r'}
+			name=${line%%=*}; rest=${line#*=}; word=${rest%% *}; detail=${rest#* }
+			if [ "$name" = status ]; then
+				[ "$word" = OK ] || report "$tag:script" FAIL "stopped: $detail (see build/frontend/$tag.log)"
+			elif [ "$word" = INFO ]; then printf "%-20s %-5s %s\n" "$name" INFO "$detail"
+			else report "$name" "$word" "$detail"; fi
+		done < "$work/$tag.meta.txt"
+		grep -q '^status=' "$work/$tag.meta.txt" || report "$tag:script" FAIL "the script did not finish (see build/frontend/$tag.log)"
+	else
+		report "$tag:script" FAIL "no result (see build/frontend/$tag.log)"
+	fi
+}
+if [ -f "$emu" ]; then
+	memleg mem21 on --settings '{"luaMemoryEvents":true}'
+	memleg mem2 on --settings '{"machine":"PC98","clockMultiplier":"4","luaMemoryEvents":true}'
+	memleg memoff off
 fi
 
 echo

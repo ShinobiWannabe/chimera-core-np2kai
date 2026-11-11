@@ -64,3 +64,12 @@
 #define NP2_EXPORTS_BOTH(X) \
 	X(SetInputPollCallback, (uint64_t fn), (fn)) \
 	X(SetRenderingEnabled, (int32_t on), (on))
+
+/* The calls at memory (Chimera issues 496 and 534): only the watch halves
+ * (np21w_, np2w_) have them; np2-entry.c answers for the plain ones. */
+#define NP2_EXPORTS_WATCH(X) \
+	X(const char *, GetMemoryCallbackScopes, (void), ()) \
+	X(int32_t, GetMemoryCallbackReplaceable, (void), ()) \
+	X(void, SetMemoryCallback, (uint64_t fn), (fn)) \
+	X(int32_t, AddMemoryWatch, (int32_t kind, int32_t scope, uint64_t address), (kind, scope, address)) \
+	X(void, RemoveMemoryWatch, (int32_t kind, int32_t scope, uint64_t address), (kind, scope, address))

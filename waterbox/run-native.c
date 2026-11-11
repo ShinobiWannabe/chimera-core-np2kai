@@ -19,6 +19,7 @@
  *                      the CPU it reports
  *   NP2_WAV=file       write the whole run's sound there, as a 44100 Hz
  *                      16-bit stereo .wav
+ *   NP2_WATCH...       the calls at memory, as watch-script.h describes
  *
  * The line ends with the drive lights of the frame, one bit a drive.
  *   out.ppm  the last frame's picture
@@ -27,10 +28,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "np2-driver.h"
 #include "press-script.h"
+#include "watch-script.h"
 
 #include <compiler.h>
 #include <pccore.h>
@@ -43,6 +46,13 @@ void *alloc_invisible(size_t size) { return calloc(1, size); }
 void *alloc_sealed(size_t size) { return calloc(1, size); }
 void *alloc_plain(size_t size) { return calloc(1, size); }
 void _debug_puts(const char *s) { fputs(s, stderr); }
+
+/* NP2_WATCH (watch-script.h): the engine's side of the calls at memory */
+static uintptr_t __attribute__((unused)) watch_called(uintptr_t kind, uintptr_t scope, uintptr_t address, uintptr_t value,
+	uintptr_t size, uintptr_t replacement)
+{
+	return watch_note(kind, scope, address, value, size, replacement);
+}
 
 static void write_ppm(const char *path)
 {
@@ -76,6 +86,12 @@ int main(int argc, char **argv)
 	if (!press_load()) return 2;
 	if (getenv("NP2_WAV") && !(wav = fopen(getenv("NP2_WAV"), "wb"))) { perror(getenv("NP2_WAV")); return 2; }
 	if (wav) fwrite("RIFF\0\0\0\0WAVEfmt \x10\0\0\0\x01\0\x02\0\x44\xac\0\0\x10\xb1\x02\0\x04\0\x10\0data\0\0\0\0", 1, 44, wav);
+	if (!watch_load()) return 2;
+#if defined(CHIMERA_MEMWATCH)
+	if (g_watchCount) SetMemoryCallback((uint64_t)(uintptr_t)watch_called);	/* before Init, as the engine does */
+#else
+	if (g_watchCount) { fprintf(stderr, "NP2_WATCH: this build has no calls at memory (build np21w or np2w)\n"); return 2; }
+#endif
 	if (!Init()) {
 		fprintf(stderr, "Init failed: %s\n", GetLoadError());
 		return 1;
@@ -83,6 +99,9 @@ int main(int argc, char **argv)
 	fprintf(stderr, "vsync %d/%d\n", (int)GetVsyncNumerator(), (int)GetVsyncDenominator());
 	for (i = 0; i < frames; i++) {
 		int32_t d, lights = 0;
+#if defined(CHIMERA_MEMWATCH)
+		WATCH_APPLY(i, AddMemoryWatch, RemoveMemoryWatch);
+#endif
 		if (i == stall) usleep(300000);
 		if (i == offFrom) SetRenderingEnabled(0);
 		if (i == offTo) SetRenderingEnabled(1);
@@ -117,6 +136,9 @@ int main(int argc, char **argv)
 #endif
 		printf("\n");
 	}
+#if defined(CHIMERA_MEMWATCH)
+	WATCH_REPORT(GetMemoryCallbackScopes(), GetMemoryCallbackReplaceable());
+#endif
 	if (getenv("NP2_REGS")) {
 		int32_t r;
 		printf("REGS");

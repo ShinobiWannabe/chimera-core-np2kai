@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Melyik fájl tartalmazza a PC-98 karaktereit: a FONT.ROM, a karakter-ROM kimentése, vagy a FONT.BMP, az egyes emulátorok által használt képforma. Az egyik szükséges: nélküle a gép nem jelenít meg szöveget. A gép része, ezért egy movie-hoz ugyanaz az érték kell.",
 		"setting.gdc_type": "GDC-típus",
 		"setting.gdc_type.about": "Milyen grafikus megjelenítésvezérlő chip van a gépben. Az alapértelmezett uPD7220 a korábbi chip; a későbbi gépek uPD72020-ja néhány grafikus módot másképp rajzol, amire néhány játék épít. A gép része, ezért egy movie-hoz ugyanaz az érték kell.",
+		"setting.lua_memory_events": "Lua memóriaesemények",
+		"setting.lua_memory_events.about": "Lehetővé teszi, hogy a Lua-szkriptek megálljanak a memóriánál, amelyet a gép végrehajt, olvas vagy ír (event.on_bus_exec, on_bus_read és on_bus_write), System Bus-cím szerint, és megváltoztassák az olvasott vagy írt értékeket. A CPU egy olyan másolatát használja, amely minden utasítást és memória-hozzáférést ellenőriz, néhány százalékkal lassabb, ezért alapértelmezés szerint ki van kapcsolva. A gép mindkét esetben ugyanúgy fut, így egy movie bármely értékkel ugyanúgy játszódik le. A gép indulásakor lép életbe.",
 		"setting.machine": "Gép",
 		"setting.machine.about": "Milyen processzora van a PC-98-nak. A PC9821 az NP2kai IA-32-es változata (np21kai), amely a PC-9801-től a Windows-korszak PC-9821-éig mindent futtat, IDE merevlemezekkel és CD-ROM-meghajtóval. A PC98 a 286-os változata (np2kai), a régebbi, 286-os PC-9801, SASI merevlemezekkel és CD-ROM-meghajtó nélkül; néhány régi program csak ezen fut helyesen. A gép része, ezért egy movie-hoz ugyanaz az érték kell.",
 		"setting.machine.option.pc98": "NEC PC-9801, 286-os processzor",

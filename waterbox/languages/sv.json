@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Vilken fil som innehåller PC-98:s tecken: FONT.ROM, en dump av tecken-ROM:et, eller FONT.BMP, bildformen som en del emulatorer använder. En av dem behövs: utan den visar maskinen ingen text. Den är en del av maskinen, så en movie behöver samma värde.",
 		"setting.gdc_type": "GDC-typ",
 		"setting.gdc_type.about": "Vilket grafikskärmstyrningschip maskinen har. uPD7220, standardvalet, är det tidigare chippet; uPD72020 i senare maskiner ritar vissa grafiklägen annorlunda, vilket några spel förlitar sig på. Den är en del av maskinen, så en movie behöver samma värde.",
+		"setting.lua_memory_events": "Lua-minneshändelser",
+		"setting.lua_memory_events.about": "Låter Lua-skript stanna vid minne som maskinen kör, läser eller skriver (event.on_bus_exec, on_bus_read och on_bus_write), efter System Bus-adress, och ändra värdena som läses eller skrivs. Den använder en kopia av CPU:n som kontrollerar varje instruktion och varje minnesåtkomst, några procent långsammare, så den är av som standard. Maskinen kör likadant i båda fallen, så en movie spelas upp likadant med vilket värde som helst. Gäller när maskinen startar.",
 		"setting.machine": "Maskin",
 		"setting.machine.about": "Vilken processor PC-98 har. PC9821 är NP2kai:s IA-32-bygge (np21kai), som kör allt från PC-9801 till PC-9821 från Windows-eran, med hårddiskar på IDE och en cd-romstation. PC98 är dess 286-bygge (np2kai), den äldre PC-9801 med en 286, hårddiskar på SASI och ingen cd-romstation; en del gammal programvara går bara rätt på den. Den är en del av maskinen, så en movie behöver samma värde.",
 		"setting.machine.option.pc98": "NEC PC-9801, 286-processor",

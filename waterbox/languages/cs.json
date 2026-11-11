@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Který soubor obsahuje znaky PC-98: FONT.ROM, výpis znakové ROM, nebo FONT.BMP, obrázková podoba používaná některými emulátory. Jeden z nich je potřeba: bez něj stroj nezobrazí žádný text. Je součástí stroje, takže movie potřebuje stejnou hodnotu.",
 		"setting.gdc_type": "Typ GDC",
 		"setting.gdc_type.about": "Jaký čip řadiče grafického zobrazení stroj má. uPD7220, výchozí, je starší čip; uPD72020 pozdějších strojů kreslí některé grafické režimy jinak, na což spoléhá několik her. Je součástí stroje, takže movie potřebuje stejnou hodnotu.",
+		"setting.lua_memory_events": "Paměťové události Lua",
+		"setting.lua_memory_events.about": "Umožňuje skriptům Lua zastavit se u paměti, kterou stroj vykonává, čte nebo zapisuje (event.on_bus_exec, on_bus_read a on_bus_write), podle adresy na System Bus, a měnit čtené či zapisované hodnoty. Používá kopii CPU, která kontroluje každou instrukci a každý přístup do paměti, o několik procent pomalejší, proto je ve výchozím stavu vypnuto. Stroj běží v obou případech stejně, takže se movie přehraje stejně s jakoukoli hodnotou. Projeví se při spuštění stroje.",
 		"setting.machine": "Stroj",
 		"setting.machine.about": "Jaký procesor PC-98 má. PC9821 je sestavení IA-32 NP2kai (np21kai), které spustí vše od PC-9801 po PC-9821 z éry Windows, s pevnými disky IDE a jednotkou CD-ROM. PC98 je jeho sestavení 286 (np2kai), starší PC-9801 s procesorem 286, pevnými disky SASI a bez jednotky CD-ROM; část starého softwaru běží správně jen na něm. Je součástí stroje, takže movie potřebuje stejnou hodnotu.",
 		"setting.machine.option.pc98": "NEC PC-9801, procesor 286",

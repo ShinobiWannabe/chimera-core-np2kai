@@ -49,6 +49,7 @@
 
 #include "port/chimera-port.h"
 #include "port/chd-cd.h"
+#include "port/memwatch.h"
 #include "np2-driver.h"
 #include "np2-input.h"
 #include "np2-settings.h"
@@ -1035,6 +1036,31 @@ ECL_EXPORT const uint8_t *ReadBus(int32_t b, int64_t addr, int32_t len)
 	}
 	return g_busRead;
 }
+
+/* ------------------------------------------------------------ calls at memory
+ *
+ * Chimera issues 496 and 534: a Lua script's event.on_bus_exec, on_bus_read
+ * and on_bus_write stop the machine at an address of the System Bus, part
+ * way through a frame, and a read or write may be given another value.
+ * port/memwatch.c keeps what is watched and makes the calls; everything it
+ * keeps is ECL_INVISIBLE, so no savestate carries it. One scope, the System
+ * Bus, numbered as the bus above (physical addresses) on both machines.
+ * Only the watch flavours (np21w, np2w) have them: the setting
+ * luaMemoryEvents picks those halves (np2-entry.c). */
+#if defined(CHIMERA_MEMWATCH)
+ECL_EXPORT const char *GetMemoryCallbackScopes(void) { return chimera_watch_scopes(); }
+/* reads (1 << 1) and writes (1 << 2) may be changed; an instruction may not */
+ECL_EXPORT int32_t GetMemoryCallbackReplaceable(void) { return (1 << 1) | (1 << 2); }
+ECL_EXPORT void SetMemoryCallback(uint64_t fn) { chimera_watch_set_callback(fn); }
+ECL_EXPORT int32_t AddMemoryWatch(int32_t kind, int32_t scope, uint64_t address)
+{
+	return chimera_watch_add(kind, scope, address);
+}
+ECL_EXPORT void RemoveMemoryWatch(int32_t kind, int32_t scope, uint64_t address)
+{
+	chimera_watch_remove(kind, scope, address);
+}
+#endif
 
 /* ------------------------------------------------------------ drives
  *

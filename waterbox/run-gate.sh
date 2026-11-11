@@ -28,6 +28,8 @@ frames=${NP2_FRAMES:-1500}
 work=$root/build/gate
 native=$root/build/native-np21/run-native
 native286=$root/build/native-np2/run-native
+nativew=$root/build/native-np21w/run-native
+native286w=$root/build/native-np2w/run-native
 wbx=$root/build/wbx-both/core.wbx
 runwbx=$root/build/run-wbx
 pass=0; fail=0; skip=0
@@ -36,7 +38,7 @@ bad()  { echo "FAIL $*"; fail=$((fail + 1)); }
 skip() { echo "SKIP $*"; skip=$((skip + 1)); }
 
 rm -rf "$work"; mkdir -p "$work"
-for f in np21 np2; do
+for f in np21 np2 np21w np2w; do
 	sh "$here/build-native.sh" $f > "$work/build-native-$f.log" 2>&1 || { echo "native build failed, see $work/build-native-$f.log"; exit 1; }
 done
 sh "$here/build-guest.sh" both > "$work/build-guest.log" 2>&1 || { echo "guest build failed, see $work/build-guest.log"; exit 1; }
@@ -616,6 +618,88 @@ print(int.from_bytes(m[i - 6:i - 4], 'little') if i >= 0 else 'none')" "$1" 2>/d
 		compare chd-run "$dq" NP2_PRESS="100:CD Next Disc:4,120:CD Swap Disc:4,700:CD Eject Disc:4,900:CD Swap Disc:4"
 	else skip "CHD: no chdman (MAME's, apt mame-tools) to make the test CHDs"; fi
 
+	# ---- legs: the calls at memory (Lua's event.on_bus_exec and the rest) ---
+	# Chimera issues 496 and 534, port/memwatch.c. The setting
+	# luaMemoryEvents picks each machine's watch half (np21w, np2w), held to
+	# its own native build; off, the plain half offers no scopes. The
+	# counter disk adds one to the word at 1FC0:0070 (physical 0x1FC70) each
+	# frame; the paging disk works through a page whose linear address is
+	# not its physical one.
+	memon() {	# memon <folder>: add luaMemoryEvents true to its settings
+		python3 - "$1/settings" <<'PY'
+import json, os, sys
+p = sys.argv[1]
+s = json.load(open(p)) if os.path.exists(p) else {}
+s["luaMemoryEvents"] = True
+json.dump(s, open(p, "w"))
+PY
+	}
+	dm=$(folder memoff); python3 "$root/tests/gen-testdisk.py" --counter "$dm/c.hdm"; echo '{"floppy":["c.hdm"]}' > "$dm/slots"
+	NP2_WATCH=w:1fc70 "$runwbx" "$wbx" "$dm" 10 > "$work/memoff.out" 2> "$work/memoff.err"
+	dn=$(folder memon); cp "$dm/c.hdm" "$dm/slots" "$dn/"; memon "$dn"
+	NP2_WATCH=w:1fc70 "$runwbx" "$wbx" "$dn" 10 > "$work/memon.out" 2> "$work/memon.err"
+	if grep -q 'would not watch' "$work/memoff.err" && grep -q '^WATCH scopes= replaceable=0 ' "$work/memoff.out" &&
+		! grep -q 'would not watch' "$work/memon.err" && grep -q '^WATCH scopes=System Bus replaceable=6 ' "$work/memon.out"; then
+		ok "memory events: off by default (no scopes, a watch refused); with luaMemoryEvents the System Bus is offered, reads and writes replaceable"
+	else bad "memory events: setting off/on not as expected (see $work/memoff.* and memon.*)"; fi
+
+	for m in 21 2; do
+		lbl=mem$m; dw=$(folder "$lbl"); cp "$dn/c.hdm" "$dn/slots" "$dw/"; memon "$dw"
+		if [ $m = 2 ]; then to286 "$dw"; nw=$native286w; np=$native286; mach=PC98; else nw=$nativew; np=$native; mach=PC9821; fi
+		# a write and a read at the counter, the first instruction: sandbox
+		# and native report the same calls, the counter's values one apart
+		W='w:1fc70,r:1fc70,x:1fc00'
+		NP2_WATCH=$W NP2_WATCH_MAX=100000 NP2_WATCH_LOG=$work/$lbl.n.log "$nw" "$dw" "$frames" > "$work/$lbl.n.out" 2>/dev/null
+		NP2_WATCH=$W NP2_WATCH_MAX=100000 NP2_WATCH_LOG=$work/$lbl.w.log "$runwbx" "$wbx" "$dw" "$frames" > "$work/$lbl.w.out" 2>/dev/null
+		chk=$(python3 - "$work/$lbl.w.log" <<'PY'
+import sys
+w = [l.split() for l in open(sys.argv[1]) if l.split()[2] == "w"]
+x = [l for l in open(sys.argv[1]) if l.split()[2] == "x"]
+vals = [int(p[5], 16) for p in w]
+ok = len(w) > 50 and all(p[4] == "0001fc70" and p[6] == "2" and p[7] == "r" for p in w) \
+    and vals == list(range(vals[0], vals[0] + len(vals))) and len(x) == 1
+print("ok %d" % len(w) if ok else "bad %d writes, %d starts" % (len(w), len(x)))
+PY
+)
+		grep -E '^[0-9]+ |^WATCH' "$work/$lbl.n.out" > "$work/$lbl.n"
+		grep -E '^[0-9]+ |^WATCH' "$work/$lbl.w.out" > "$work/$lbl.w"
+		if [ "${chk%% *}" = ok ] && cmp -s "$work/$lbl.n.log" "$work/$lbl.w.log" && cmp -s "$work/$lbl.n" "$work/$lbl.w" &&
+			[ "$(lines < "$work/$lbl.n" | wc -l)" -eq "$frames" ]; then
+			ok "memory events $mach: a write and read of the counter word reported at 0x1FC70, size 2, each value one more (${chk#ok } writes), the first instruction once; sandbox and native make the same calls and frames"
+		else bad "memory events $mach: $chk; or sandbox and native calls or frames differ (see $work/$lbl.*)"; fi
+		# every address of every kind watched: the same machine as the
+		# plain half, frame for frame, memory too; a replaced write is not
+		NP2_WATCH='x:any,r:any,w:any' NP2_WATCH_MAX=0 "$runwbx" "$wbx" "$dw" "$frames" /dev/null "$work/$lbl.all.mem" 2>/dev/null | lines > "$work/$lbl.all"
+		"$np" "$dw" "$frames" /dev/null "$work/$lbl.plain.mem" 2>/dev/null | lines > "$work/$lbl.plain"
+		NP2_WATCH='w:1fc70=1234' NP2_WATCH_MAX=0 "$runwbx" "$wbx" "$dw" "$frames" /dev/null "$work/$lbl.set.mem" 2>/dev/null | lines > "$work/$lbl.set"
+		setv=$(python3 -c 'import sys; m = open(sys.argv[1], "rb").read(); print("%x" % int.from_bytes(m[0x1fc70:0x1fc72], "little"))' "$work/$lbl.set.mem" 2>/dev/null)
+		if cmp -s "$work/$lbl.all" "$work/$lbl.plain" && cmp -s "$work/$lbl.all.mem" "$work/$lbl.plain.mem" &&
+			[ "$(wc -l < "$work/$lbl.all")" -eq "$frames" ] && [ "$setv" = 1234 ] &&
+			! { cmp -s "$work/$lbl.set" "$work/$lbl.plain" && cmp -s "$work/$lbl.set.mem" "$work/$lbl.plain.mem"; }; then
+			ok "memory events $mach: every address watched for instructions, reads and writes, and the machine is the plain one's over $frames frames (frames and memory); the control, a replaced write, holds its value (1234) and changes the run"
+		else bad "memory events $mach: watched run not the plain one, or the replaced write did not hold ($setv) (see $work/$lbl.*)"; fi
+		rm -f "$work/$lbl".*.mem
+	done
+
+	# paging (PC9821): linear 0x50000 is physical 0x60000. Watches made
+	# after the TLB holds the page (frame 1000) still see its reads and
+	# writes, at the physical address, and never at the linear one.
+	dp=$(folder mempaging); python3 "$root/tests/gen-testdisk.py" --paging "$dp/p.hdm"; echo '{"floppy":["p.hdm"]}' > "$dp/slots"; memon "$dp"
+	W='r:60010,w:60010,x:60100,r:50010,w:50010,x:50100'
+	NP2_WATCH=$W NP2_WATCH_FROM=1000 NP2_WATCH_MAX=100000 NP2_WATCH_LOG=$work/mempaging.n.log "$nativew" "$dp" "$frames" > "$work/mempaging.n.out" 2>/dev/null
+	NP2_WATCH=$W NP2_WATCH_FROM=1000 NP2_WATCH_MAX=100000 NP2_WATCH_LOG=$work/mempaging.w.log "$runwbx" "$wbx" "$dp" "$frames" > "$work/mempaging.w.out" 2>/dev/null
+	chk=$(python3 - "$work/mempaging.w.log" "$((frames - 1000))" <<'PY'
+import collections, sys
+c = collections.Counter((p[2], p[4], p[6]) for p in (l.split() for l in open(sys.argv[1])))
+n = int(sys.argv[2])
+want = {("r", "00060010", "4"): n, ("w", "00060010", "4"): n, ("x", "00060100", "0"): n}
+print("ok" if dict(c) == want else "bad %s" % dict(c))
+PY
+)
+	if [ "$chk" = ok ] && cmp -s "$work/mempaging.n.log" "$work/mempaging.w.log"; then
+		ok "memory events with paging on: a page's reads, writes and code reported at their physical addresses, once a frame each, also for a page the TLB held before the watch; the linear addresses (the control) never; sandbox and native the same"
+	else bad "memory events with paging: $chk (see $work/mempaging.*)"; fi
+
 	# ---- leg: the user's games, local only ----------------------------------
 	if [ -n "${NP2_GAMES:-}" ] && [ -d "${NP2_GAMES:-}" ]; then
 		for g in "$NP2_GAMES"/*/; do
@@ -686,6 +770,14 @@ PY2
 		else
 			bad "$title: frames $n of $g_frames, check $real, control $ctl (see $work/$lbl.*)"
 		fi
+		# the same game with luaMemoryEvents and every address watched: the
+		# same run, frame for frame, memory too (the calls at memory)
+		memon "$dn"
+		NP2_PRESS=$g_press NP2_WATCH='x:any,r:any,w:any' NP2_WATCH_MAX=0 "$runwbx" "$wbx" "$dn" "$g_frames" /dev/null "$work/$lbl.m.mem" 2>/dev/null | lines > "$work/$lbl.m"
+		if cmp -s "$work/$lbl.n" "$work/$lbl.m" && cmp -s "$work/$lbl.n.mem" "$work/$lbl.m.mem"; then
+			ok "$title: with luaMemoryEvents and every address watched, the same run over $g_frames frames (frames and memory)"
+		else bad "$title: the watched run differs (see $work/$lbl.m)"; fi
+		rm -f "$dn/settings"
 		rm -f "${work:?}/$lbl".*.mem "${work:?}/$lbl".*.ppm "${dn:?}/game.$g_ext"	# game content: not kept
 	done
 fi

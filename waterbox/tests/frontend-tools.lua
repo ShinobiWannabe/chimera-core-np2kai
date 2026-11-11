@@ -199,18 +199,24 @@ check("registers", function()
 		string.format("CS=%X IP=%X (the counter's code is 1FC0:0000-006F)", cs or -1, ip or -1))
 end)
 
--- a key pressed by the script is read by the program
+-- a key pressed by the script is read by the program. A project opens read
+-- only (Chimera, as TAStudio): then the movie is played as it is and a
+-- script's joypad.set is not used, so recording mode goes on for this
 check("joypad", function()
 	local name
 	for k, _ in pairs(joypad.get()) do if k:match("Key RETURN$") then name = k end end
 	if name == nil then out("joypad", false, "no Key RETURN button"); return end
+	local wasReadOnly = movie.getreadonly()
+	movie.setreadonly(false)
 	local k0 = u8(KEYS)
 	joypad.set({ [name] = true }); emu.frameadvance()
 	joypad.set({ [name] = true }); emu.frameadvance()
 	advance(10)
+	movie.setreadonly(wasReadOnly)
 	local k1, code = u8(KEYS), u8(LASTKEY + 1)
 	out("joypad", k1 == (k0 + 1) % 256 and code == 0x1C,
-		string.format("'%s' held 2 frames: key count %d -> %d, key code %02Xh", name, k0, k1, code))
+		string.format("'%s' held 2 frames (recording mode; it was %s): key count %d -> %d, key code %02Xh",
+			name, wasReadOnly and "read only" or "on", k0, k1, code))
 end)
 
 -- a state kept in memory takes the machine back

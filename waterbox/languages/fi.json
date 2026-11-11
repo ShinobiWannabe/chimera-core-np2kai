@@ -58,6 +58,8 @@
 		"setting.font_file.about": "Missä tiedostossa PC-98:n merkit ovat: FONT.ROM, merkki-ROMin vedos, tai FONT.BMP, kuvamuoto, jota jotkin emulaattorit käyttävät. Yksi niistä tarvitaan: ilman sitä kone ei näytä tekstiä. Se on osa konetta, joten movie tarvitsee saman arvon.",
 		"setting.gdc_type": "GDC-tyyppi",
 		"setting.gdc_type.about": "Mikä grafiikkanäytön ohjainpiiri koneessa on. uPD7220, oletus, on aiempi piiri; myöhempien koneiden uPD72020 piirtää jotkin grafiikkatilat eri tavalla, mihin muutamat pelit luottavat. Se on osa konetta, joten movie tarvitsee saman arvon.",
+		"setting.lua_memory_events": "Lua-muistitapahtumat",
+		"setting.lua_memory_events.about": "Antaa Lua-skriptien pysähtyä muistiin, jota kone suorittaa, lukee tai kirjoittaa (event.on_bus_exec, on_bus_read ja on_bus_write), System Bus -osoitteen mukaan, ja muuttaa luettuja tai kirjoitettuja arvoja. Se käyttää suorittimen kopiota, joka tarkistaa jokaisen käskyn ja muistiviittauksen ja on muutaman prosentin hitaampi, joten se on oletuksena pois päältä. Kone toimii samoin molemmissa tapauksissa, joten movie toistuu samoin millä tahansa arvolla. Tulee voimaan, kun kone käynnistyy.",
 		"setting.machine": "Kone",
 		"setting.machine.about": "Mikä suoritin PC-98:ssa on. PC9821 on NP2kai:n IA-32-käännös (np21kai), joka ajaa kaikkea PC-9801:stä Windows-ajan PC-9821:een, IDE-kiintolevyillä ja CD-ROM-asemalla. PC98 on sen 286-käännös (np2kai), vanhempi 286-suorittimella varustettu PC-9801, SASI-kiintolevyillä ja ilman CD-ROM-asemaa; osa vanhoista ohjelmista toimii oikein vain sillä. Se on osa konetta, joten movie tarvitsee saman arvon.",
 		"setting.machine.option.pc98": "NEC PC-9801, 286-suoritin",

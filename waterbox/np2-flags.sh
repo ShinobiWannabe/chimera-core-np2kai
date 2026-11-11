@@ -19,7 +19,20 @@
 # SUPPORT_ASYNC_CPU, SUPPORT_NET, SUPPORT_LGY98, SUPPORT_TRIDENT_TGUI,
 # SUPPORT_HOSTDRV.
 #
-# Variables in: NP2 (the upstream tree), PORT (waterbox/port), FLAVOUR (np2 or np21).
+# Variables in: NP2 (the upstream tree), PORT (waterbox/port), FLAVOUR (np21,
+# np2, np21w or np2w).
+#
+# A flavour ending in w is that machine with the calls at memory (Chimera
+# issues 496 and 534; waterbox/port/memwatch.c), the copy the setting
+# luaMemoryEvents picks: built with CHIMERA_MEMWATCH and ENABLE_TRAP, so both
+# CPU loops call steptrap() before each instruction, which
+# waterbox/port/trap/steptrap.h makes one flag test, and the CPU's memory
+# functions come from waterbox/port/cpumem-watch.c (tools/sources.py with
+# "watch"). The plain flavours are NP2kai's CPU as it is, at full speed.
+case "$FLAVOUR" in
+  *w) NP2_BASE=${FLAVOUR%w}; NP2_WATCH_BUILD=watch ;;
+  *)  NP2_BASE=$FLAVOUR; NP2_WATCH_BUILD= ;;
+esac
 NP2_DEFINES="-D__LIBRETRO__ -DCHIMERA_CORE -DBIOS_IO_EMULATION -DOSLANG_UTF8 -DOSLINEBREAK_CRLF \
  -DSUPPORT_8BPP -DSUPPORT_16BPP -DSUPPORT_24BPP -DSUPPORT_32BPP -DSUPPORT_CL_GD5430 \
  -DSUPPORT_CRT15KHZ -DSUPPORT_FAST_MEMORYCHECK -DSUPPORT_FMGEN -DSUPPORT_GPIB -DSUPPORT_HRTIMER \
@@ -37,7 +50,10 @@ NP2_INCLUDES="-I$PORT -I$NP2 -I$NP2/sdl -I$NP2/cbus -I$NP2/common -I$NP2/diskima
  -I$NP2/diskimage/fd -I$NP2/embed -I$NP2/embed/menu -I$NP2/embed/menubase -I$NP2/fdd -I$NP2/font \
  -I$NP2/generic -I$NP2/io -I$NP2/mem -I$NP2/sound -I$NP2/sound/mame -I$NP2/sound/fmgen \
  -I$NP2/trap -I$NP2/vram -I$NP2/wab"
-if [ "$FLAVOUR" = np21 ]; then
+if [ -n "$NP2_WATCH_BUILD" ]; then
+  NP2_DEFINES="$NP2_DEFINES -DCHIMERA_MEMWATCH -DENABLE_TRAP"
+fi
+if [ "$NP2_BASE" = np21 ]; then
   NP2_DEFINES="$NP2_DEFINES $NP21_DEFINES"
   NP2_INCLUDES="$NP2_INCLUDES -I$NP2/i386c -I$NP2/i386c/ia32 -I$NP2/i386c/ia32/instructions \
  -I$NP2/i386c/ia32/instructions/fpu -I$NP2/i386c/ia32/instructions/fpu/softfloat \
